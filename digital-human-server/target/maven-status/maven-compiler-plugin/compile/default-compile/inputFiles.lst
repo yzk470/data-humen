@@ -1,6 +1,8 @@
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\TtsConnector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\service\ConfigStorageService.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\entity\SessionEntity.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\signaling\SignalingHandler.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\signaling\SignalMessage.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\mapper\SessionMapper.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\common\GlobalExceptionHandler.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\orchestrator\PipelineResult.java
@@ -9,6 +11,7 @@ C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\serve
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\emotion\EmotionResult.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\AsrConnector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\service\MessageStorageService.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\config\WebSocketConfig.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\entity\DhConfigEntity.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\controller\ChatController.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\session\Session.java
@@ -19,6 +22,7 @@ C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\serve
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\emotion\EmotionToLive2DParams.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\mapper\DhConfigMapper.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\mapper\MessageMapper.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\controller\AdminController.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\common\BusinessException.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\emotion\EmotionCalculator.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\service\SessionStorageService.java
@@ -27,4 +31,5 @@ C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\serve
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\DeepSeekConnector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\DhServerApplication.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\emotion\EmotionLabel.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\admin\AdminAuthFilter.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\session\Message.java
