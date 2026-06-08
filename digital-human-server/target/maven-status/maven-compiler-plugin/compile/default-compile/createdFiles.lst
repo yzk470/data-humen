@@ -1,1 +1,4 @@
+com\dh\server\common\BusinessException.class
 com\dh\server\DhServerApplication.class
+com\dh\server\common\Result.class
+com\dh\server\common\GlobalExceptionHandler.class
