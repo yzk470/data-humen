@@ -23,6 +23,14 @@ onMounted(async () => {
   }
 })
 
+// 监听 modelPath 变化，动态切换模型
+watch(() => props.modelPath, async (newPath) => {
+  if (newPath && canvasRef.value) {
+    driver.destroy()
+    await driver.init(canvasRef.value, newPath)
+  }
+})
+
 watch(() => chatStore.currentAnimationParams, (params) => {
   if (params && Object.keys(params).length > 0) {
     driver.setParams(params)
