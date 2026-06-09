@@ -2,104 +2,68 @@ import { ref } from 'vue'
 import * as PIXI from 'pixi.js'
 import { Live2DModel } from 'pixi-live2d-display'
 
+// pixi-live2d-display 需要在 window 上暴露 PIXI
+window.PIXI = PIXI
+
 export function useLive2dDriver() {
   const app = ref(null)
   const model = ref(null)
   const idleMode = ref(true)
-  const currentParams = ref({})
-  const targetParams = ref({})
-  const transitionProgress = ref(1.0)
-
-  let animationFrameId = null
-  let lastFrameTime = 0
-
-  const PARAM_MAP = {
-    ParamMouthOpenY: 'ParamMouthOpenY',
-    ParamEyeLOpen: 'ParamEyeLOpen',
-    ParamEyeROpen: 'ParamEyeROpen',
-    ParamBrowY: 'ParamBrowY',
-    ParamHappy: 'ParamHappy',
-    ParamSad: 'ParamSad',
-    ParamSurprise: 'ParamSurprise',
-    ParamAngry: 'ParamAngry',
-    ParamBreath: 'ParamBreath'
-  }
+  const error = ref(null)
 
   async function init(canvas, modelPath) {
     destroy()
-
-    app.value = new PIXI.Application({
-      view: canvas,
-      width: canvas.width,
-      height: canvas.height,
-      backgroundAlpha: 0,
-      antialias: true,
-      resolution: window.devicePixelRatio || 1,
-      autoDensity: true
-    })
+    error.value = null
 
     try {
-      model.value = await Live2DModel.from(modelPath)
-      // 居中缩放模型
-      model.value.scale.set(0.5)
+      app.value = new PIXI.Application({
+        view: canvas,
+        width: canvas.width,
+        height: canvas.height,
+        backgroundAlpha: 0,
+        antialias: true,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true
+      })
+
+      model.value = await Live2DModel.from(modelPath, {
+        autoUpdate: true,
+        autoInteract: false
+      })
+
+      const scale = Math.min(
+        canvas.width / (model.value.width || 600) * 0.8,
+        canvas.height / (model.value.height || 600) * 0.8
+      )
+      model.value.scale.set(scale)
       model.value.x = canvas.width / 2
       model.value.y = canvas.height / 2
       model.value.anchor.set(0.5, 0.5)
 
       app.value.stage.addChild(model.value)
-      startRenderLoop()
     } catch (e) {
-      console.error('Live2D 模型加载失败:', e, modelPath)
-    }
-  }
-
-  function startRenderLoop() {
-    const render = (timestamp) => {
-      const deltaTime = timestamp - lastFrameTime
-      lastFrameTime = timestamp
-
-      if (model.value) {
-        updateTransition(deltaTime)
-        applyParams()
-      }
-
-      // PIXI handles its own render loop
-      animationFrameId = requestAnimationFrame(render)
-    }
-    animationFrameId = requestAnimationFrame(render)
-  }
-
-  function updateTransition(deltaTime) {
-    if (transitionProgress.value >= 1.0) return
-    const speed = 0.003
-    transitionProgress.value = Math.min(1.0, transitionProgress.value + deltaTime * speed)
-  }
-
-  function applyParams() {
-    if (!model.value) return
-    const t = transitionProgress.value
-    for (const key of Object.keys(PARAM_MAP)) {
-      const paramName = PARAM_MAP[key]
-      const cur = currentParams.value[key] || 0
-      const tar = (targetParams.value[key] !== undefined)
-        ? targetParams.value[key]
-        : cur
-      const val = cur + (tar - cur) * t
-      currentParams.value[key] = val
-
-      try {
-        model.value.internalModel.coreModel.setParameterValueById(
-          paramName, val)
-      } catch (e) {
-        // 参数可能不存在于此模型
-      }
+      console.error('Live2D 模型加载失败:', modelPath, e)
+      error.value = e.message
+      // 加载失败时清理
+      if (model.value) { try { model.value.destroy() } catch (_) {} }
+      if (app.value) { try { app.value.destroy(false, { children: true }) } catch (_) {} }
+      app.value = null
+      model.value = null
     }
   }
 
   function setParams(params) {
-    targetParams.value = { ...params }
-    transitionProgress.value = 0.0
+    if (!model.value) return
     idleMode.value = false
+    try {
+      const im = model.value.internalModel
+      const cm = im.coreModel
+      for (const [key, val] of Object.entries(params)) {
+        try { cm.setParameterValueById(key, val) } catch (_) {}
+      }
+    } catch (e) {
+      console.warn('设置Live2D参数失败:', e)
+    }
   }
 
   function setIdleMode(idle) {
@@ -107,18 +71,15 @@ export function useLive2dDriver() {
   }
 
   function destroy() {
-    if (animationFrameId) cancelAnimationFrame(animationFrameId)
     if (model.value) {
-      model.value.destroy()
+      try { model.value.destroy() } catch (_) {}
       model.value = null
     }
     if (app.value) {
-      app.value.destroy(false, { children: true })
+      try { app.value.destroy(false, { children: true }) } catch (_) {}
       app.value = null
     }
-    currentParams.value = {}
-    targetParams.value = {}
   }
 
-  return { init, setParams, setIdleMode, currentParams, idleMode, destroy }
+  return { init, setParams, setIdleMode, idleMode, error, destroy }
 }
