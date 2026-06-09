@@ -27,7 +27,7 @@ app:
     base-model: models/base/Haru.model3.json
     models-dir: digital-human-web/public/models
     face-region:
-      x: 512
-      y: 128
-      width: 256
-      height: 256
+      x: 680
+      y: 430
+      width: 160
+      height: 160
