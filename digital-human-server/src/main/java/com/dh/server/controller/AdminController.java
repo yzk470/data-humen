@@ -3,6 +3,7 @@ package com.dh.server.controller;
 import com.dh.server.avatar.AvatarService;
 import com.dh.server.avatar.ModelFileService;
 import com.dh.server.common.BusinessException;
+import com.dh.server.connector.QwenVLConnector;
 import com.dh.server.common.Result;
 import com.dh.server.storage.entity.MessageEntity;
 import com.dh.server.storage.service.ConfigStorageService;
@@ -26,6 +27,7 @@ public class AdminController {
     private final MessageStorageService messageStorageService;
     private final AvatarService avatarService;
     private final ModelFileService modelFileService;
+    private final QwenVLConnector qwenVLConnector;
 
     @GetMapping("/config/prompt")
     public Result<Map<String, String>> getPrompt() {
@@ -85,6 +87,35 @@ public class AdminController {
     private String getOrDefault(String key, String defaultValue) {
         String value = configStorageService.getConfigValue(key);
         return value != null ? value : defaultValue;
+    }
+
+    // ========== AI 面部检测 API ==========
+
+    @PostMapping("/avatar/detect-face")
+    public Result<Map<String, Integer>> detectFace(
+            @RequestParam("image") MultipartFile image) {
+
+        if (image.isEmpty()) {
+            throw new BusinessException(400, "请选择图片文件");
+        }
+
+        if (image.getSize() > 10 * 1024 * 1024) {
+            throw new BusinessException(400, "图片大小不能超过 10MB");
+        }
+
+        try {
+            byte[] imageBytes = image.getBytes();
+            QwenVLConnector.FaceRegion region = qwenVLConnector.detectFace(imageBytes);
+            return Result.ok(Map.of(
+                "x", region.getX(),
+                "y", region.getY(),
+                "width", region.getWidth(),
+                "height", region.getHeight()
+            ));
+        } catch (Exception e) {
+            log.error("AI 人脸检测失败", e);
+            throw new BusinessException(500, "AI 识别失败，请手动框选面部区域");
+        }
     }
 
     // ========== 形象管理 API ==========

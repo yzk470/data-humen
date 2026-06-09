@@ -18,14 +18,12 @@ public class AppConfig {
     }
 
     private Avatar avatar = new Avatar();
+    private QwenVL qwenVl = new QwenVL();
 
     @Data
     public static class Avatar {
-        /** 基础 Live2D 模型 JSON 路径，相对于 modelsRoot */
         private String baseModel = "models/base/Haru.model3.json";
-        /** 面部在纹理图集中的矩形区域 */
         private FaceRegion faceRegion = new FaceRegion();
-        /** 模型文件根目录 */
         private String modelsDir = "../digital-human-web/public/models";
 
         @Data
@@ -35,5 +33,12 @@ public class AppConfig {
             private int width = 209;
             private int height = 255;
         }
+    }
+
+    @Data
+    public static class QwenVL {
+        private String apiKey;
+        private String apiUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        private String model = "qwen-vl-max";
     }
 }

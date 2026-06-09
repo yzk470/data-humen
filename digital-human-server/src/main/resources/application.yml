@@ -35,3 +35,7 @@ app:
       y: 13
       width: 209
       height: 255
+  qwen-vl:
+    api-key: ${QWEN_VL_API_KEY:}
+    api-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model: qwen-vl-max
