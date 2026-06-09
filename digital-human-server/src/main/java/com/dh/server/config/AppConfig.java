@@ -30,10 +30,10 @@ public class AppConfig {
 
         @Data
         public static class FaceRegion {
-            private int x = 680;
-            private int y = 430;
-            private int width = 160;
-            private int height = 160;
+            private int x = 577;
+            private int y = 13;
+            private int width = 209;
+            private int height = 255;
         }
     }
 }
