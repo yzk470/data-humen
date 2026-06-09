@@ -16,9 +16,10 @@
 ### 1.2 核心思路
 
 - 使用 1 个通用的 Live2D 模型骨架（官方 Sample Model），`.model3.json` + 骨骼/变形器保持不变
-- 管理员上传照片后，调用 AI 风格迁移 API 将照片转为插画风格
+- 管理员上传多张照片，生成多个不同形象（如不同发型/风格的角色）
+- 调用 AI 风格迁移 API 将每张照片转为插画风格
 - 将风格化后的面部区域替换到 Live2D 纹理图集中
-- 生成新的纹理文件，模型加载时使用新纹理
+- 终端用户在对话页面可以从形象库中选择自己喜欢的形象
 
 ### 1.3 关键决策
 
@@ -27,7 +28,7 @@
 | Live2D 模型 | Cubism SDK 官方 Sample（Haru/Mao） | 免费，纹理图集结构已知 |
 | AI 服务 | 阿里云百炼 / 通义万象（wanx） | OpenAI 兼容接口格式，详见下方推荐 |
 | 替换策略 | 仅面部区域替换 | 身体/头发/服装保留原样 |
-| 使用场景 | 管理员统一管理 | 后台设置，所有用户看到同一形象 |
+| 使用场景 | 管理员生成多个形象 + 终端用户自选 | 管理后台生成形象库，用户端可选 |
 | 文件存储 | 服务端本地目录 | `digital-human-web/public/models/` |
 | 接口模式 | OpenAI 兼容格式 | 与现有 DeepSeekConnector 模式一致 |
 
@@ -37,13 +38,16 @@
 
 ### 2.1 整体流程
 
+**管理端（生成形象）**：
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      管理后台 (Vue 3)                        │
 │  AdminPanel.vue                                              │
 │  ├─ 照片上传 (<el-upload>)                                   │
-│  ├─ 预览当前/历史生成的形象                                   │
-│  └─ 切换激活的形象                                           │
+│  ├─ 形象名称/描述编辑                                        │
+│  ├─ 生成中的进度提示                                         │
+│  └─ 形象库管理（查看/删除）                                  │
 └──────────────────────┬──────────────────────────────────────┘
                        │ POST /api/admin/avatar/upload (multipart/form-data)
                        ▼
@@ -51,13 +55,13 @@
 │                   Spring Boot 服务端                          │
 │                                                              │
 │  AdminController                                              │
-│    └─ uploadAvatar(photo) → AvatarService.generate(photo)    │
+│    └─ uploadAvatar(photo, name) → AvatarService.generate()   │
 │                                                              │
 │  AvatarService (新建)                                        │
 │    ├─ 1. 保存原始照片                                        │
 │    ├─ 2. StyleTransferConnector.execute(photo) → 风格化图    │
 │    ├─ 3. TextureService.replaceFace(stylizedImg, baseTexture)│
-│    └─ 4. ModelFileService.saveGeneratedModel(...)            │
+│    └─ 4. ModelFileService.createModel(...)                   │
 │                                                              │
 │  StyleTransferConnector (新建)                                │
 │    └─ POST 阿里云 AI API (OpenAI 兼容格式)                   │
@@ -83,12 +87,32 @@
 │  │   ├── haru.2048/           # 原始纹理目录                │
 │  │   └── haru_base.texture.png  # 原始纹理图（含身体等）    │
 │  ├── generated/               # 生成的形象                  │
-│  │   ├── avatar_1718000001/                                 │
+│  │   ├── avatar_001/                                        │
+│  │   │   ├── meta.json         # {name, thumbnail, ...}     │
 │  │   │   ├── haru.model3.json  # 复制自 base/              │
 │  │   │   └── haru.2048/        # 含替换后的纹理             │
-│  │   └── avatar_1718000002/                                 │
+│  │   └── avatar_002/                                        │
 │  │       └── ...                                            │
-│  └── active → generated/avatar_1718000001  # 软链接/配置指向│
+│  └── default → generated/avatar_001  # 默认形象（初始激活） │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**用户端（选择形象）**：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     用户对话页面 (ChatView)                   │
+│                                                              │
+│  ┌──────────────────────┐                                   │
+│  │   Live2D 渲染区       │   右上角:                          │
+│  │                      │   ┌─────────────────┐             │
+│  │   当前选中的形象      │   │ 🎭 切换形象  ▼  │             │
+│  │                      │   │  · 形象A (默认)  │             │
+│  │                      │   │  · 形象B         │             │
+│  └──────────────────────┘   │  · 形象C         │             │
+│                              └─────────────────┘             │
+│  GET /api/avatar/list → 获取可用形象列表                      │
+│  POST /api/session/{id}/avatar → 用户切换形象                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -242,12 +266,11 @@ public class ModelFileService {
 
     @Data
     public static class AvatarInfo {
-        private String id;           // avatar_1718000001
-        private String modelPath;    // /models/generated/avatar_1718000001/haru.model3.json
-        private String originalPhotoPath;  // 原始照片路径
+        private String id;           // avatar_001
+        private String name;         // "知性女助理"
+        private String modelPath;    // /models/generated/avatar_001/haru.model3.json
         private String thumbnailPath;      // 缩略图路径
         private LocalDateTime createdAt;
-        private boolean active;      // 是否当前激活
     }
 }
 ```
@@ -270,7 +293,9 @@ public class AvatarService {
      * 完整的换皮流水线：
      *   原始照片 → AI 风格迁移 → 面部替换 → 保存模型 → 更新配置
      */
-    public ModelFileService.AvatarInfo generateAvatar(byte[] photoBytes) {
+    public ModelFileService.AvatarInfo generateAvatar(byte[] photoBytes, String name) {
+        // ...
+        String avatarId = "avatar_" + System.currentTimeMillis();
         // 1. AI 风格迁移
         byte[] stylizedImage = styleTransfer.execute(photoBytes);
 
@@ -299,30 +324,75 @@ public class AvatarService {
 }
 ```
 
-### 3.5 API 设计（AdminController 扩展）
+### 3.5 API 设计
+
+分为两类：**管理端 API**（AdminController，需认证）和 **用户端 API**（公开，供终端用户选择形象）。
+
+#### 管理端 API（AdminController 扩展）
 
 | 接口 | 方法 | 说明 |
 |---|---|---|
-| `POST /api/admin/avatar/upload` | POST (multipart) | 上传照片，触发生成流水线 |
+| `POST /api/admin/avatar/upload` | POST (multipart) | 上传照片+名称，触发生成流水线 |
 | `GET /api/admin/avatar/list` | GET | 列出所有已生成的形象 |
-| `PUT /api/admin/avatar/{id}/activate` | PUT | 切换激活的形象 |
 | `DELETE /api/admin/avatar/{id}` | DELETE | 删除指定形象 |
 
-**`POST /api/admin/avatar/upload`** 请求/响应：
+**`POST /api/admin/avatar/upload`**：
 
 ```
-Request:  multipart/form-data, field name = "photo"
+Request:  multipart/form-data
+  - photo: 图片文件 (required)
+  - name:  形象名称 (required), e.g. "知性女助理"
+
 Response: {
   "code": 200,
-  "message": "success",
   "data": {
-    "id": "avatar_1718000001",
-    "modelPath": "/models/generated/avatar_1718000001/haru.model3.json",
-    "thumbnailPath": "/models/generated/avatar_1718000001/thumbnail.png",
+    "id": "avatar_001",
+    "name": "知性女助理",
+    "modelPath": "/models/generated/avatar_001/haru.model3.json",
+    "thumbnailPath": "/models/generated/avatar_001/thumbnail.png",
     "createdAt": "2026-06-09T12:00:00"
   }
 }
 ```
+
+#### 用户端 API（公开）
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `GET /api/avatar/list` | GET | 获取可用形象列表（供用户浏览选择） |
+| `PUT /api/session/{sessionId}/avatar` | PUT | 用户切换当前会话使用的形象 |
+
+**`GET /api/avatar/list`** 响应：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "avatars": [
+      {
+        "id": "avatar_001",
+        "name": "知性女助理",
+        "thumbnailPath": "/models/generated/avatar_001/thumbnail.png"
+      },
+      {
+        "id": "avatar_002",
+        "name": "活力少年",
+        "thumbnailPath": "/models/generated/avatar_002/thumbnail.png"
+      }
+    ],
+    "defaultId": "avatar_001"
+  }
+}
+```
+
+**`PUT /api/session/{sessionId}/avatar`** 请求/响应：
+
+```
+Request:  { "avatarId": "avatar_002" }
+Response: { "code": 200, "data": { "modelPath": "/models/generated/avatar_002/haru.model3.json" } }
+```
+
+会话级别存储用户的选择：前端调用后，`Live2DCanvas` 切换到对应的 `modelPath`。会话断开后不持久化（下次进入恢复默认）。
 
 ### 3.6 配置扩展（application.yml）
 
@@ -339,34 +409,52 @@ app:
 
 ### 3.7 前端改造
 
-#### AdminPanel.vue 新增"形象管理"区块
+#### AdminPanel.vue — 新增"形象管理"区块
 
 ```
-┌─────────────────────────────────────────┐
-│  数字人形象管理                           │
-│                                          │
-│  ┌──────────────────────────────┐        │
-│  │   上传照片生成新形象           │        │
-│  │   [选择文件] [开始生成]       │        │
-│  │   生成中... (进度提示)        │        │
-│  └──────────────────────────────┘        │
-│                                          │
-│  历史生成的形象：                         │
-│  ┌──────┐ ┌──────┐ ┌──────┐            │
-│  │ 缩略图│ │ 缩略图│ │ 缩略图│            │
-│  │ 当前 ✓ │ │      │ │      │            │
-│  │[激活] │ │[激活] │ │[激活] │            │
-│  └──────┘ └──────┘ └──────┘            │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  数字人形象管理                                │
+│                                               │
+│  ┌───────────────────────────────────┐        │
+│  │  上传照片生成新形象                 │        │
+│  │  形象名称: [________]              │        │
+│  │  [选择照片] [开始生成]             │        │
+│  │  生成中 ⏳ ...                     │        │
+│  └───────────────────────────────────┘        │
+│                                               │
+│  形象库（共 N 个）：                           │
+│  ┌────────┐ ┌────────┐ ┌────────┐           │
+│  │ 缩略图  │ │ 缩略图  │ │ 缩略图  │           │
+│  │ 知性女  │ │ 活力少年│ │ 温柔姐  │           │
+│  │ [删除]  │ │ [删除]  │ │ [删除]  │           │
+│  └────────┘ └────────┘ └────────┘           │
+└──────────────────────────────────────────────┘
+```
+
+#### ChatView.vue — 用户端新增"切换形象"入口
+
+```
+┌─────────────────────────────────┐
+│  Live2D 渲染区                   │
+│                    ┌──────────┐ │
+│                    │ 🎭 形象  ▼│ │
+│                    │ · 知性女  │ │
+│                    │ · 活力少年│ │
+│                    │ · 温柔姐  │ │
+│                    └──────────┘ │
+│  当前正在说话的数字人            │
+└─────────────────────────────────┘
 ```
 
 **组件变更清单**：
 
 | 文件 | 变更类型 | 说明 |
 |---|---|---|
-| `AdminPanel.vue` | 修改 | 新增照片上传、形象列表区块 |
+| `AdminPanel.vue` | 修改 | 新增照片上传+名称输入、形象库管理（列表+删除） |
+| `ChatView.vue` | 修改 | 新增形象切换下拉菜单 |
+| `Live2DCanvas.vue` | 修改 | 支持动态切换 `modelPath`（监听 prop 变化重新加载模型） |
 | `AvatarSelector.vue` | 修改 | 动态加载后台形象列表 |
-| `stores/avatar.js` | 修改 | 新增 `uploadPhoto()`、`listAvatars()`、`activateAvatar()` |
+| `stores/avatar.js` | 修改 | 新增 `uploadPhoto()`、`listAvatars()`、`deleteAvatar()`、`switchAvatar()` |
 | `services/api.js` | 修改 | 新增 avatar 相关 API 调用 |
 
 ### 3.8 Live2D 模型准备
