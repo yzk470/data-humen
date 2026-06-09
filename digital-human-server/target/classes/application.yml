@@ -24,14 +24,18 @@ mybatis-plus:
 
 app:
   deepseek:
-    api-key: ${DEEPSEEK_API_KEY:}
+    api-key: ${DEEPSEEK_API_KEY:sk-ba2afad20abe45c5b4f5ea3a3747b2ab}
     api-url: https://api.deepseek.com/v1/chat/completions
     model: deepseek-chat
   avatar:
     base-model: models/base/Haru.model3.json
     models-dir: ../digital-human-web/public/models
     face-region:
-      x: 680
-      y: 430
-      width: 160
-      height: 160
+      x: 577
+      y: 13
+      width: 209
+      height: 255
+  qwen-vl:
+    api-key: ${QWEN_VL_API_KEY:sk-ebf2f21b8cba4e5aa66ed1da536a2ac4}
+    api-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model: qwen-vl-max

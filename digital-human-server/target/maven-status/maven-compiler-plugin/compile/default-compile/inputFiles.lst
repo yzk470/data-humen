@@ -10,6 +10,8 @@ C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\serve
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\Connector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\controller\SessionController.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\emotion\EmotionResult.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\QwenVLConnector.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\TextureFusionConnector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\AsrConnector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\service\MessageStorageService.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\config\WebSocketConfig.java

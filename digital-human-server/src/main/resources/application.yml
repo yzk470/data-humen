@@ -24,7 +24,7 @@ mybatis-plus:
 
 app:
   deepseek:
-    api-key: ${DEEPSEEK_API_KEY:}
+    api-key: ${DEEPSEEK_API_KEY:sk-ba2afad20abe45c5b4f5ea3a3747b2ab}
     api-url: https://api.deepseek.com/v1/chat/completions
     model: deepseek-chat
   avatar:
