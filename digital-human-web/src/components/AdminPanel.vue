@@ -78,7 +78,7 @@
               size="small"
               type="danger"
               @click="deleteAvatar(av.id)"
-              :disabled="av.id === avatarStore.defaultId"
+              :disabled="avatarStore.avatars.length <= 1"
             >
               删除
             </el-button>
@@ -94,9 +94,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
 import ImageCropper from './ImageCropper.vue'
 import { useAvatarStore } from '../stores/avatar'
+import { adminApi } from '../services/api'
 import { ElMessage } from 'element-plus'
 
 const prompt = ref('')
@@ -105,7 +105,6 @@ const ttsConfig = ref({ voice_id: '', speed: '1.0', pitch: '0' })
 const savingTts = ref(false)
 const modelPath = ref('')
 const savingModel = ref(false)
-const api = axios.create({ baseURL: '/api/admin' })
 
 const avatarStore = useAvatarStore()
 const avatarName = ref('')
@@ -115,9 +114,9 @@ const cropData = ref(null)
 onMounted(async () => {
   try {
     const [promptRes, ttsRes, modelRes] = await Promise.all([
-      api.get('/config/prompt'),
-      api.get('/config/tts-voice'),
-      api.get('/config/model')
+      adminApi.get('/config/prompt'),
+      adminApi.get('/config/tts-voice'),
+      adminApi.get('/config/model')
     ])
     prompt.value = promptRes.data.data.system_prompt || ''
     ttsConfig.value = {
@@ -170,13 +169,13 @@ async function deleteAvatar(id) {
 
 async function savePrompt() {
   savingPrompt.value = true
-  await api.put('/config/prompt', { system_prompt: prompt.value })
+  await adminApi.put('/config/prompt', { system_prompt: prompt.value })
   savingPrompt.value = false
 }
 
 async function saveTtsConfig() {
   savingTts.value = true
-  await api.put('/config/tts-voice', {
+  await adminApi.put('/config/tts-voice', {
     voice_id: ttsConfig.value.voice_id,
     speed: String(ttsConfig.value.speed),
     pitch: String(ttsConfig.value.pitch)
@@ -186,7 +185,7 @@ async function saveTtsConfig() {
 
 async function saveModelPath() {
   savingModel.value = true
-  await api.put('/config/model', { live2d_model_path: modelPath.value })
+  await adminApi.put('/config/model', { live2d_model_path: modelPath.value })
   savingModel.value = false
 }
 </script>
