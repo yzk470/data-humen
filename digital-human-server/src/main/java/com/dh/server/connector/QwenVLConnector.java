@@ -50,7 +50,7 @@ public class QwenVLConnector {
 
             Map<String, Object> textPart = new HashMap<>();
             textPart.put("type", "text");
-            textPart.put("text", "识别图中人物的面部区域。仅返回JSON对象，格式为：{\"x\":数字,\"y\":数字,\"width\":数字,\"height\":数字}。x和y是面部左上角相对于图片左上角的像素坐标，width和height是面部的像素宽高。不要返回任何其他文字。");
+            textPart.put("text", "Detect the center coordinates of both eyes and mouth of the anime character. Return ONLY a JSON object with pixel coordinates: {\"eyeLX\":100,\"eyeLY\":200,\"eyeRX\":300,\"eyeRY\":200,\"mouthX\":200,\"mouthY\":350}. Each value is an integer pixel coordinate relative to the image top-left corner.");
             content.add(textPart);
 
             Map<String, Object> body = new HashMap<>();
@@ -95,14 +95,43 @@ public class QwenVLConnector {
 
     private FaceRegion parseFaceRegion(String text) throws Exception {
         String cleaned = text.trim();
-        log.info("QwenVL 原始回复长度: {}, 内容: {}", cleaned.length(), cleaned);
-        // 去掉 markdown 代码块
+        log.info("QwenVL 原始回复: {}", cleaned);
         cleaned = cleaned.replaceAll("```json\\s*", "").replaceAll("```\\s*", "");
-        // 替换中文逗号和多余空格
         cleaned = cleaned.replace("，", ",").replaceAll("\\s+", "");
         log.info("QwenVL 清理后: {}", cleaned);
 
-        // 用正则分别提取数字（容忍 JSON 格式错误）
+        // 尝试从五官坐标计算面部区域
+        try {
+            int eyeLX = extractInt(cleaned, "eyeLX");
+            int eyeLY = extractInt(cleaned, "eyeLY");
+            int eyeRX = extractInt(cleaned, "eyeRX");
+            int eyeRY = extractInt(cleaned, "eyeRY");
+            int mouthX = extractInt(cleaned, "mouthX");
+            int mouthY = extractInt(cleaned, "mouthY");
+
+            int eyeCX = (eyeLX + eyeRX) / 2;
+            int eyeCY = (eyeLY + eyeRY) / 2;
+            int eyeDist = Math.abs(eyeRX - eyeLX);
+            int eyeToMouth = mouthY - eyeCY;
+
+            // 二次元面部正方形：眼睛间距*1.3 or 眼嘴距*1.5，取较小值
+            int size = (int)(Math.min(eyeDist * 1.3, eyeToMouth * 1.5));
+            // 保证最小尺寸
+            size = Math.max(size, 100);
+            int fx = eyeCX - size / 2;
+            int fy = eyeCY - (int)(eyeToMouth * 0.35);
+
+            FaceRegion region = new FaceRegion();
+            region.setX(Math.max(0, fx));
+            region.setY(Math.max(0, fy));
+            region.setWidth(size);
+            region.setHeight(size);
+            return region;
+        } catch (Exception e) {
+            log.info("五官检测失败，尝试直接坐标: {}", e.getMessage());
+        }
+
+        // 兜底: 直接提取 x/y/width/height
         int x = extractInt(cleaned, "x");
         int y = extractInt(cleaned, "y");
         int width = extractInt(cleaned, "width");
