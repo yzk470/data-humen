@@ -291,13 +291,21 @@ public class AvatarService {
 
     /**
      * 完整的换皮流水线：
-     *   原始照片 → AI 风格迁移 → 面部替换 → 保存模型 → 更新配置
+     *   上传图片 → [是二次元?跳过:AI风格迁移] → 面部替换 → 保存模型
+     *
+     * @param photoBytes 上传的图片
+     * @param name       形象名称
+     * @param isAnime    图片是否已是二次元风格（true 则跳过 AI 风格化）
      */
-    public ModelFileService.AvatarInfo generateAvatar(byte[] photoBytes, String name) {
-        // ...
-        String avatarId = "avatar_" + System.currentTimeMillis();
-        // 1. AI 风格迁移
-        byte[] stylizedImage = styleTransfer.execute(photoBytes);
+    public ModelFileService.AvatarInfo generateAvatar(byte[] photoBytes, String name,
+                                                       boolean isAnime) {
+        // 1. 风格化（二次元图片跳过此步）
+        byte[] stylizedImage;
+        if (isAnime) {
+            stylizedImage = photoBytes;  // 直接使用原图
+        } else {
+            stylizedImage = styleTransfer.execute(photoBytes);
+        }
 
         // 2. 读取基础纹理
         byte[] baseTexture = modelFileService.loadBaseTexture();
@@ -340,8 +348,10 @@ public class AvatarService {
 
 ```
 Request:  multipart/form-data
-  - photo: 图片文件 (required)
-  - name:  形象名称 (required), e.g. "知性女助理"
+  - photo:   图片文件 (required)
+  - name:    形象名称 (required), e.g. "知性女助理"
+  - isAnime: "true" / "false" (optional, default false)
+             上传的已是二次元图片时设为 true，跳过 AI 风格迁移
 
 Response: {
   "code": 200,
@@ -416,9 +426,11 @@ app:
 │  数字人形象管理                                │
 │                                               │
 │  ┌───────────────────────────────────┐        │
-│  │  上传照片生成新形象                 │        │
+│  │  上传图片生成新形象                  │        │
 │  │  形象名称: [________]              │        │
-│  │  [选择照片] [开始生成]             │        │
+│  │  [选择图片]                        │        │
+│  │  ☐ 已是二次元风格（跳过 AI 转换）    │        │
+│  │  [开始生成]                        │        │
 │  │  生成中 ⏳ ...                     │        │
 │  └───────────────────────────────────┘        │
 │                                               │
