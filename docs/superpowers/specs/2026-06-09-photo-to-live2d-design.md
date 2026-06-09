@@ -128,23 +128,23 @@ AvatarService (新建)      ←── AdminController (修改)
 
 ### 3.1 TextureService（纹理处理服务）
 
-**职责**：将二次元图片的面部区域提取并适配到 Live2D 纹理图集中
+**职责**：将管理员框选的面部区域适配到 Live2D 纹理图集中
 
 **核心流程**：
 
 ```
-上传的二次元图 (任意尺寸/角度)
+管理员在浏览器端拖拽裁剪框 → 精确框出面部的正方形区域
         │
-        ▼
+        ▼  服务端收到: 原始图 + 裁剪坐标 (cropX, cropY, cropW, cropH)
+        │
 ┌─────────────────────┐
-│ 1. 方向修正          │  EXIF 旋转检测，自动扶正
-│ 2. 居中裁剪          │  正方形裁剪，取图片中心区域
-│ 3. 缩放到目标尺寸     │  匹配面部 UV 区域大小
-│ 4. 纹理合成 + 羽化   │  替换到 faceRegion，边缘 10px 渐变
+│ 1. 按坐标裁剪        │  从原图精确裁出面部的正方形区域
+│ 2. 等比缩放到目标尺寸 │  匹配面部 UV 区域大小 (不变形)
+│ 3. 纹理合成 + 羽化   │  替换到 faceRegion，边缘 10px 渐变
 └─────────────────────┘
         │
         ▼
-合成后的纹理图 (与 baseTexture 同尺寸)
+合成后的纹理图
 ```
 
 ```java
@@ -153,65 +153,71 @@ AvatarService (新建)      ←── AdminController (修改)
 public class TextureService {
 
     /**
-     * 将二次元图片的面部区域替换到基础纹理中。
+     * 将管理员框选的面部区域替换到基础纹理中。
      *
-     * 处理策略：
-     * - 大小不适配：居中裁剪 → 等比缩放到 faceRegion 尺寸
-     * - 角度不正：  读取 EXIF Orientation 自动旋转
-     * - 非正方形：  取较短边做正方形裁剪（居中）
+     * 裁剪由前端完成（管理员可视化框选），服务端只做等比缩放 + 合成。
+     * 等比缩放保证面部不变形。
      *
-     * @param sourceImage  上传的二次元图片字节
+     * @param sourceImage  上传的原始图片字节
+     * @param cropX, cropY, cropW, cropH  前端传来的裁剪坐标（相对于原图）
      * @param baseTexture  原始 Live2D 纹理图集字节
      * @param faceRegion   面部在图集中的矩形区域 (x, y, width, height)
      * @return 合成后的新纹理图字节数组 (PNG)
      */
-    public byte[] replaceFaceRegion(byte[] sourceImage, byte[] baseTexture,
-                                     Rectangle faceRegion) {
-        // Step 1: 方向修正 — 读 EXIF Orientation，必要时旋转
-        BufferedImage img = readWithOrientationCorrection(sourceImage);
+    public byte[] replaceFaceRegion(byte[] sourceImage,
+                                     int cropX, int cropY, int cropW, int cropH,
+                                     byte[] baseTexture, Rectangle faceRegion) {
+        // Step 1: 按前端坐标精确裁剪
+        BufferedImage img = readImage(sourceImage);
+        BufferedImage cropped = img.getSubimage(cropX, cropY, cropW, cropH);
 
-        // Step 2: 居中裁剪 — 取图片中心正方形区域
-        BufferedImage cropped = centerCropSquare(img);
+        // Step 2: 等比缩放到面部区域尺寸 (不变形)
+        BufferedImage scaled = resizeProportional(cropped,
+            faceRegion.width, faceRegion.height);
 
-        // Step 3: 缩放到面部区域尺寸
-        BufferedImage scaled = resize(cropped, faceRegion.width, faceRegion.height);
-
-        // Step 4: 纹理合成 — 替换 faceRegion 区域
+        // Step 3: 纹理合成 — 替换 faceRegion 区域
         BufferedImage base = readImage(baseTexture);
         Graphics2D g = base.createGraphics();
         g.drawImage(scaled, faceRegion.x, faceRegion.y, null);
         g.dispose();
 
-        // Step 5: 边缘羽化 — 替换区域边界做高斯模糊渐变
+        // Step 4: 边缘羽化 — 替换区域边界 ~10px 高斯模糊渐变
         featherEdges(base, faceRegion, 10);
 
         return toPngBytes(base);
     }
-
-    /**
-     * 居中正方形裁剪：以图片中心为基准，取最大正方形。
-     * 例如 1920×1080 横向图 → 取中心 1080×1080
-     */
-    private BufferedImage centerCropSquare(BufferedImage img) { ... }
-
-    /**
-     * EXIF Orientation 自动旋转（处理手机拍照的横竖问题）
-     */
-    private BufferedImage readWithOrientationCorrection(byte[] bytes) { ... }
 }
 ```
 
-**各场景处理结果**：
+**为什么不变形**：前端裁剪框保证宽高比与 faceRegion 一致（强制正方形），服务端等比缩放 → 面部比例完全正确。
 
-| 上传的图片 | 处理方式 | 结果 |
-|---|---|---|
-| 正方形头像 500×500 | 直接缩放到 faceRegion | ✅ 完美适配 |
-| 横版全身图 1920×1080 | 居中取 1080×1080 → 缩放 | ⚠️ 只保留面部区域，身体被裁掉 |
-| 竖版图 1080×1920 | 居中取 1080×1080 → 缩放 | ⚠️ 同上 |
-| 手机拍照（EXIF 旋转） | 自动旋转后处理 | ✅ 正常 |
-| 太小（< faceRegion 尺寸） | 放大 → 可能模糊 | ⚠️ 建议前端限制最小分辨率 |
+### 3.2 前端裁剪组件（ImageCropper）
 
-**面部区域坐标**：打开模型纹理图集（如 `haru.2048/texture_00.png`），人工标记面部所在的矩形区域，写入配置。
+**职责**：管理员上传图片后，可视化框选面部区域
+
+```
+┌──────────────────────────────────────┐
+│  上传的图片预览                        │
+│                                      │
+│        ┌──────────┐                  │
+│        │          │                  │
+│        │  可拖拽的 │  ← 正方形裁剪框   │
+│        │  裁剪框   │    可拖拽/缩放    │
+│        │          │    宽高比锁定 1:1 │
+│        └──────────┘                  │
+│                                      │
+└──────────────────────────────────────┘
+```
+
+**实现方案**：使用 `vue-advanced-cropper` 或原生 Canvas 实现：
+
+| 功能 | 说明 |
+|---|---|
+| 拖拽移动 | 拖动裁剪框到面部位置 |
+| 四角缩放 | 调整裁剪框大小 |
+| 宽高比锁定 | 固定 1:1（正方形），匹配 faceRegion |
+| 最小尺寸限制 | 不小于 128×128px |
+| 输出 | 裁剪坐标 (x, y, width, height) → 随上传请求发送到后端 |
 
 ### 3.2 ModelFileService（模型文件管理）
 
@@ -310,6 +316,7 @@ public class AvatarService {
 Request:  multipart/form-data
   - image: 二次元图片文件 (required, PNG/JPG)
   - name:  形象名称 (required), e.g. "知性女助理"
+  - cropX, cropY, cropW, cropH: 裁剪坐标 (required, 相对于原图的像素坐标)
 
 Response: {
   "code": 200,
@@ -374,19 +381,22 @@ app:
 │  ┌───────────────────────────────────────┐        │
 │  │  上传二次元角色图片生成新形象           │        │
 │  │                                        │        │
-│  │  💡 建议：上传正面的二次元角色头像      │        │
-│  │     正方形或接近正方形的图片效果最佳    │        │
-│  │     分辨率不低于 256×256               │        │
-│  │                                        │        │
+│  │  Step 1: 选择图片                      │        │
 │  │  形象名称: [_______________]            │        │
-│  │  [选择图片]  preview.jpg               │        │
+│  │  [选择图片]                             │        │
 │  │                                        │        │
-│  │  生成后预览:                            │        │
-│  │  ┌──────────────────┐                 │        │
-│  │  │  合成效果预览     │  满意? [确认]   │        │
-│  │  │  (纹理截图)      │  不满意 [重试]  │        │
-│  │  └──────────────────┘                 │        │
+│  │  Step 2: 框选面部 (拖拽裁剪框)          │        │
+│  │  ┌────────────────────────────┐        │        │
+│  │  │                            │        │        │
+│  │  │      ┌──────────┐          │        │        │
+│  │  │      │ 拖拽框选  │          │        │        │
+│  │  │      │ 面部区域  │          │        │        │
+│  │  │      └──────────┘          │        │        │
+│  │  │                            │        │        │
+│  │  └────────────────────────────┘        │        │
 │  │                                        │        │
+│  │  Step 3: 生成                          │        │
+│  │  裁剪后面部预览: □ 确认无误             │        │
 │  │  [开始生成]                             │        │
 │  └───────────────────────────────────────┘        │
 │                                                   │
@@ -417,7 +427,8 @@ app:
 
 | 文件 | 变更类型 | 说明 |
 |---|---|---|
-| `AdminPanel.vue` | 修改 | 新增二次元图片上传+名称输入、形象库管理 |
+| `AdminPanel.vue` | 修改 | 集成 ImageCropper、上传流程（选择→裁剪→生成） |
+| `ImageCropper.vue` | 新建 | 可视化裁剪组件（可拖拽正方形框选面部区域） |
 | `ChatView.vue` | 修改 | 新增形象切换下拉菜单 |
 | `Live2DCanvas.vue` | 修改 | 支持动态切换 `modelPath` |
 | `stores/avatar.js` | 修改 | 新增 `uploadAvatar()`、`listAvatars()`、`deleteAvatar()`、`switchAvatar()` |
