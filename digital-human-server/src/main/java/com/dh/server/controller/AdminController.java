@@ -141,8 +141,8 @@ public class AdminController {
     public Result<Map<String, Boolean>> deleteAvatar(@PathVariable String id) {
         try {
             List<ModelFileService.AvatarInfo> avatars = modelFileService.listAvatars();
-            if (!avatars.isEmpty() && avatars.get(0).getId().equals(id)) {
-                throw new BusinessException(400, "不能删除默认形象");
+            if (avatars.size() <= 1) {
+                throw new BusinessException(400, "至少保留一个形象");
             }
             modelFileService.deleteAvatar(id);
             return Result.ok(Map.of("success", true));
