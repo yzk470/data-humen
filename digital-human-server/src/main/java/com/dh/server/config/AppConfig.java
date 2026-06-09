@@ -22,7 +22,7 @@ public class AppConfig {
     @Data
     public static class Avatar {
         /** 基础 Live2D 模型 JSON 路径，相对于 modelsRoot */
-        private String baseModel = "models/base/haru.model3.json";
+        private String baseModel = "models/base/Haru.model3.json";
         /** 面部在纹理图集中的矩形区域 */
         private FaceRegion faceRegion = new FaceRegion();
         /** 模型文件根目录 */

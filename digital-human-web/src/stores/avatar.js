@@ -10,7 +10,7 @@ import { useSessionStore } from './session'
 
 export const useAvatarStore = defineStore('avatar', {
   state: () => ({
-    modelPath: '/models/base/haru.model3.json',
+    modelPath: '/models/generated/avatar_default/Haru.model3.json',
     avatars: [],
     defaultId: '',
     currentAvatarId: '',
