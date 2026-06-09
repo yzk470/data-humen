@@ -5,7 +5,6 @@ import com.dh.server.session.Message;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -15,7 +14,6 @@ import java.util.*;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class DeepSeekConnector implements Connector<DeepSeekConnector.DeepSeekInput, String> {
 
     private final AppConfig appConfig;

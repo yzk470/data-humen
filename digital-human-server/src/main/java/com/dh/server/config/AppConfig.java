@@ -26,7 +26,7 @@ public class AppConfig {
         /** 面部在纹理图集中的矩形区域 */
         private FaceRegion faceRegion = new FaceRegion();
         /** 模型文件根目录 */
-        private String modelsDir = "digital-human-web/public/models";
+        private String modelsDir = "../digital-human-web/public/models";
 
         @Data
         public static class FaceRegion {

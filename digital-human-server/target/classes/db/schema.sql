@@ -42,4 +42,4 @@ INSERT INTO t_dh_config (config_key, config_value, description) VALUES
 ('tts_voice_id', 'zh-CN-XiaoxiaoNeural', 'TTS 音色 ID'),
 ('tts_speed', '1.0', '语速'),
 ('tts_pitch', '0', '音调'),
-('live2d_model_path', '/models/default.model3.json', 'Live2D 模型路径');
+('live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', 'Live2D 模型路径');
