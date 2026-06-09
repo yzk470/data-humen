@@ -11,6 +11,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.List;
@@ -52,7 +53,8 @@ public class ModelFileService {
         meta.setName(name);
         meta.setCreatedAt(java.time.LocalDateTime.now().toString());
         String metaJson = objectMapper.writeValueAsString(meta);
-        Files.write(generatedDir.resolve("meta.json"), metaJson.getBytes());
+        Files.write(generatedDir.resolve("meta.json"),
+            metaJson.getBytes(StandardCharsets.UTF_8));
 
         Path modelJson = findModelJson(generatedDir);
         Path modelsRoot = getModelsRoot();
@@ -72,6 +74,7 @@ public class ModelFileService {
                 Path metaFile = dir.resolve("meta.json");
                 if (Files.exists(metaFile)) {
                     String json = Files.readString(metaFile);
+                    json = stripBom(json);
                     MetaInfo meta = objectMapper.readValue(json, MetaInfo.class);
                     AvatarInfo info = new AvatarInfo();
                     info.setId(meta.getId());
@@ -122,6 +125,7 @@ public class ModelFileService {
             throw new IllegalArgumentException("形象不存在: " + avatarId);
         }
         String json = Files.readString(metaFile);
+        json = stripBom(json);
         MetaInfo meta = objectMapper.readValue(json, MetaInfo.class);
         AvatarInfo info = new AvatarInfo();
         info.setId(meta.getId());
@@ -135,6 +139,13 @@ public class ModelFileService {
         info.setThumbnailPath("/models/" + modelsRoot.relativize(
             dir.resolve("thumbnail.png")).toString().replace('\\', '/'));
         return info;
+    }
+
+    private String stripBom(String s) {
+        if (s != null && !s.isEmpty() && s.charAt(0) == '﻿') {
+            return s.substring(1);
+        }
+        return s;
     }
 
     private Path getModelsRoot() {
