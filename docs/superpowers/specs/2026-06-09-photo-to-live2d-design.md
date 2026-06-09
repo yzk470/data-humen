@@ -128,7 +128,24 @@ AvatarService (新建)      ←── AdminController (修改)
 
 ### 3.1 TextureService（纹理处理服务）
 
-**职责**：将二次元图片的面部替换到 Live2D 纹理图集中
+**职责**：将二次元图片的面部区域提取并适配到 Live2D 纹理图集中
+
+**核心流程**：
+
+```
+上传的二次元图 (任意尺寸/角度)
+        │
+        ▼
+┌─────────────────────┐
+│ 1. 方向修正          │  EXIF 旋转检测，自动扶正
+│ 2. 居中裁剪          │  正方形裁剪，取图片中心区域
+│ 3. 缩放到目标尺寸     │  匹配面部 UV 区域大小
+│ 4. 纹理合成 + 羽化   │  替换到 faceRegion，边缘 10px 渐变
+└─────────────────────┘
+        │
+        ▼
+合成后的纹理图 (与 baseTexture 同尺寸)
+```
 
 ```java
 // 目录: digital-human-server/src/main/java/com/dh/server/avatar/
@@ -138,21 +155,61 @@ public class TextureService {
     /**
      * 将二次元图片的面部区域替换到基础纹理中。
      *
-     * @param faceImage    上传的二次元图片
-     * @param baseTexture  原始 Live2D 纹理图集
-     * @param faceRegion   面部在图集中的矩形区域 (x, y, w, h)
+     * 处理策略：
+     * - 大小不适配：居中裁剪 → 等比缩放到 faceRegion 尺寸
+     * - 角度不正：  读取 EXIF Orientation 自动旋转
+     * - 非正方形：  取较短边做正方形裁剪（居中）
+     *
+     * @param sourceImage  上传的二次元图片字节
+     * @param baseTexture  原始 Live2D 纹理图集字节
+     * @param faceRegion   面部在图集中的矩形区域 (x, y, width, height)
      * @return 合成后的新纹理图字节数组 (PNG)
      */
-    public byte[] replaceFaceRegion(byte[] faceImage, byte[] baseTexture,
+    public byte[] replaceFaceRegion(byte[] sourceImage, byte[] baseTexture,
                                      Rectangle faceRegion) {
-        // 1. 将 faceImage 缩放到 faceRegion 尺寸
-        // 2. 对 faceImage 做轻微几何变形，匹配面部 UV 布局
-        // 3. 将 baseTexture 中 faceRegion 区域替换为处理后的 faceImage
-        // 4. 边缘羽化（alpha 渐变），使替换区域与周围自然过渡
-        // 5. 返回合成后的纹理 PNG
+        // Step 1: 方向修正 — 读 EXIF Orientation，必要时旋转
+        BufferedImage img = readWithOrientationCorrection(sourceImage);
+
+        // Step 2: 居中裁剪 — 取图片中心正方形区域
+        BufferedImage cropped = centerCropSquare(img);
+
+        // Step 3: 缩放到面部区域尺寸
+        BufferedImage scaled = resize(cropped, faceRegion.width, faceRegion.height);
+
+        // Step 4: 纹理合成 — 替换 faceRegion 区域
+        BufferedImage base = readImage(baseTexture);
+        Graphics2D g = base.createGraphics();
+        g.drawImage(scaled, faceRegion.x, faceRegion.y, null);
+        g.dispose();
+
+        // Step 5: 边缘羽化 — 替换区域边界做高斯模糊渐变
+        featherEdges(base, faceRegion, 10);
+
+        return toPngBytes(base);
     }
+
+    /**
+     * 居中正方形裁剪：以图片中心为基准，取最大正方形。
+     * 例如 1920×1080 横向图 → 取中心 1080×1080
+     */
+    private BufferedImage centerCropSquare(BufferedImage img) { ... }
+
+    /**
+     * EXIF Orientation 自动旋转（处理手机拍照的横竖问题）
+     */
+    private BufferedImage readWithOrientationCorrection(byte[] bytes) { ... }
 }
 ```
+
+**各场景处理结果**：
+
+| 上传的图片 | 处理方式 | 结果 |
+|---|---|---|
+| 正方形头像 500×500 | 直接缩放到 faceRegion | ✅ 完美适配 |
+| 横版全身图 1920×1080 | 居中取 1080×1080 → 缩放 | ⚠️ 只保留面部区域，身体被裁掉 |
+| 竖版图 1080×1920 | 居中取 1080×1080 → 缩放 | ⚠️ 同上 |
+| 手机拍照（EXIF 旋转） | 自动旋转后处理 | ✅ 正常 |
+| 太小（< faceRegion 尺寸） | 放大 → 可能模糊 | ⚠️ 建议前端限制最小分辨率 |
 
 **面部区域坐标**：打开模型纹理图集（如 `haru.2048/texture_00.png`），人工标记面部所在的矩形区域，写入配置。
 
@@ -311,22 +368,35 @@ app:
 #### AdminPanel.vue — 新增"形象管理"区块
 
 ```
-┌──────────────────────────────────────────────┐
-│  数字人形象管理                                │
-│                                               │
-│  ┌───────────────────────────────────┐        │
-│  │  上传二次元图片生成新形象           │        │
-│  │  形象名称: [________]              │        │
-│  │  [选择图片] [开始生成]             │        │
-│  └───────────────────────────────────┘        │
-│                                               │
-│  形象库（共 N 个）：                           │
-│  ┌────────┐ ┌────────┐ ┌────────┐           │
-│  │ 缩略图  │ │ 缩略图  │ │ 缩略图  │           │
-│  │ 知性女  │ │ 活力少年│ │ 温柔姐  │           │
-│  │ [删除]  │ │ [删除]  │ │ [删除]  │           │
-│  └────────┘ └────────┘ └────────┘           │
-└──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  数字人形象管理                                    │
+│                                                   │
+│  ┌───────────────────────────────────────┐        │
+│  │  上传二次元角色图片生成新形象           │        │
+│  │                                        │        │
+│  │  💡 建议：上传正面的二次元角色头像      │        │
+│  │     正方形或接近正方形的图片效果最佳    │        │
+│  │     分辨率不低于 256×256               │        │
+│  │                                        │        │
+│  │  形象名称: [_______________]            │        │
+│  │  [选择图片]  preview.jpg               │        │
+│  │                                        │        │
+│  │  生成后预览:                            │        │
+│  │  ┌──────────────────┐                 │        │
+│  │  │  合成效果预览     │  满意? [确认]   │        │
+│  │  │  (纹理截图)      │  不满意 [重试]  │        │
+│  │  └──────────────────┘                 │        │
+│  │                                        │        │
+│  │  [开始生成]                             │        │
+│  └───────────────────────────────────────┘        │
+│                                                   │
+│  形象库（共 N 个）：                               │
+│  ┌────────┐ ┌────────┐ ┌────────┐               │
+│  │ 缩略图  │ │ 缩略图  │ │ 缩略图  │               │
+│  │ 知性女  │ │ 活力少年│ │ 温柔姐  │               │
+│  │ [删除]  │ │ [删除]  │ │ [删除]  │               │
+│  └────────┘ └────────┘ └────────┘               │
+└──────────────────────────────────────────────────┘
 ```
 
 #### ChatView.vue — 用户端新增"切换形象"入口
@@ -375,16 +445,19 @@ Haru/
 
 ---
 
-## 4. 错误处理
+## 4. 错误处理与边界情况
 
 | 异常场景 | 处理策略 |
 |---|---|
 | 上传文件为空 | `BusinessException(400, "请选择图片文件")` |
 | 文件不是图片 | `BusinessException(400, "仅支持 PNG/JPG 格式")` |
 | 文件过大（>10MB） | `BusinessException(400, "图片大小不能超过 10MB")` |
+| 图片分辨率过低（< 128×128） | `BusinessException(400, "图片分辨率过低，请上传至少 256×256 的图片")` |
+| 图片尺寸/角度不合适 | 服务端自动居中裁剪 + EXIF 旋转，无需用户手动调整 |
 | 文件系统写入失败 | `BusinessException(500, "模型保存失败，请检查磁盘空间")` |
 | 删除不存在的形象 | `BusinessException(404, "形象不存在")` |
 | 删除默认形象 | `BusinessException(400, "不能删除默认形象")` |
+| 没有可用形象时用户打开切换菜单 | 显示"暂无可用形象"，保留默认 Live2D 模型 |
 
 ---
 
