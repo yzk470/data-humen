@@ -85,42 +85,78 @@ public class TextureFusionConnector {
         return prompt;
     }
 
-    /** Step 2: 调用百炼兼容模式 Images API 生图 */
+    /** Step 2: 调用 DashScope 原生万象生图 API（异步+轮询） */
     private byte[] callWanxImageGen(String prompt) throws Exception {
+        Map<String, Object> input = new HashMap<>();
+        input.put("prompt", prompt + ", high quality, detailed anime texture, 2d game asset");
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("size", "1024*1024");
+        params.put("n", 1);
+
         Map<String, Object> body = new HashMap<>();
-        body.put("model", "wanx2.1-t2i-turbo");
-        body.put("prompt", prompt + ", high quality, detailed anime texture, 2048x2048");
-        body.put("n", 1);
-        body.put("size", "2048x2048");
+        body.put("model", "wanx-v1");
+        body.put("input", input);
+        body.put("parameters", params);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(appConfig.getQwenVl().getApiKey());
+        headers.set("X-DashScope-Async", "enable");
 
-        // 使用百炼兼容模式 Images API
-        String url = appConfig.getQwenVl().getApiUrl() + "/images/generations";
+        // DashScope 原生文生图 API
+        String genUrl = "https://dashscope.aliyuncs.com/api/v1/services/aigc/"
+            + "text2image/image-synthesis";
 
         HttpEntity<String> entity = new HttpEntity<>(
             objectMapper.writeValueAsString(body), headers);
         ResponseEntity<String> resp = restTemplate.exchange(
-            url, HttpMethod.POST, entity, String.class);
+            genUrl, HttpMethod.POST, entity, String.class);
 
         log.info("万象生图响应: {}", resp.getBody());
 
         JsonNode root = objectMapper.readTree(resp.getBody());
-        JsonNode data = root.path("data");
-        if (data.isArray() && data.size() > 0) {
-            String imageUrl = data.get(0).path("url").asText();
-            String b64 = data.get(0).path("b64_json").asText();
-            if (!imageUrl.isEmpty()) {
-                ResponseEntity<byte[]> imgResp = restTemplate.getForEntity(
-                    imageUrl, byte[].class);
-                return imgResp.getBody();
+        String taskId = root.path("output").path("task_id").asText();
+        if (taskId.isEmpty()) {
+            throw new Exception("未获取到task_id: " + resp.getBody());
+        }
+
+        log.info("万象任务ID: {}, 等待完成...", taskId);
+
+        // 轮询任务结果
+        String taskUrl = "https://dashscope.aliyuncs.com/api/v1/tasks/" + taskId;
+        HttpEntity<Void> taskEntity = new HttpEntity<>(headers);
+        for (int i = 0; i < 30; i++) {
+            Thread.sleep(2000);
+            ResponseEntity<String> taskResp = restTemplate.exchange(
+                taskUrl, HttpMethod.GET, taskEntity, String.class);
+            JsonNode taskRoot = objectMapper.readTree(taskResp.getBody());
+            String status = taskRoot.path("output").path("task_status").asText();
+            log.info("万象状态[{}/30]: {}", i + 1, status);
+
+            if ("SUCCEEDED".equals(status)) {
+                JsonNode results = taskRoot.path("output").path("results");
+                if (results.isArray() && results.size() > 0) {
+                    String imageUrl = results.get(0).path("url").asText();
+                    if (!imageUrl.isEmpty()) {
+                        // OSS 签名URL，直接用 URLConnection 避免 header 干扰
+                        java.net.URL url = new java.net.URL(imageUrl);
+                        java.net.HttpURLConnection conn =
+                            (java.net.HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("GET");
+                        conn.setConnectTimeout(5000);
+                        conn.setReadTimeout(30000);
+                        byte[] imgBytes = conn.getInputStream().readAllBytes();
+                        conn.disconnect();
+                        return imgBytes;
+                    }
+                }
+                throw new Exception("万象完成但无图片");
             }
-            if (!b64.isEmpty()) {
-                return Base64.getDecoder().decode(b64);
+            if ("FAILED".equals(status)) {
+                throw new Exception("万象生图失败: " + taskResp.getBody());
             }
         }
-        throw new Exception("万象生图未返回图片: " + resp.getBody());
+        throw new Exception("万象生图超时(60s)");
     }
 }

@@ -36,6 +36,6 @@ app:
       width: 209
       height: 255
   qwen-vl:
-    api-key: ${QWEN_VL_API_KEY:sk-a9da99b5e72646de9c2f12633db6d24b}
+    api-key: ${QWEN_VL_API_KEY:sk-ebf2f21b8cba4e5aa66ed1da536a2ac4}
     api-url: https://dashscope.aliyuncs.com/compatible-mode/v1
     model: qwen-vl-max
