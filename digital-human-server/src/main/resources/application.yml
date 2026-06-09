@@ -23,3 +23,11 @@ app:
     api-key: ${DEEPSEEK_API_KEY:}
     api-url: https://api.deepseek.com/v1/chat/completions
     model: deepseek-chat
+  avatar:
+    base-model: models/base/haru.model3.json
+    models-dir: digital-human-web/public/models
+    face-region:
+      x: 512
+      y: 128
+      width: 256
+      height: 256

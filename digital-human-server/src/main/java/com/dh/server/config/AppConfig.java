@@ -16,4 +16,24 @@ public class AppConfig {
         private String apiUrl = "https://api.deepseek.com/v1/chat/completions";
         private String model = "deepseek-chat";
     }
+
+    private Avatar avatar = new Avatar();
+
+    @Data
+    public static class Avatar {
+        /** 基础 Live2D 模型 JSON 路径，相对于 modelsRoot */
+        private String baseModel = "models/base/haru.model3.json";
+        /** 面部在纹理图集中的矩形区域 */
+        private FaceRegion faceRegion = new FaceRegion();
+        /** 模型文件根目录 */
+        private String modelsDir = "digital-human-web/public/models";
+
+        @Data
+        public static class FaceRegion {
+            private int x = 512;
+            private int y = 128;
+            private int width = 256;
+            private int height = 256;
+        }
+    }
 }
