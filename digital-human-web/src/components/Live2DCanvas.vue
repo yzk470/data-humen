@@ -10,7 +10,7 @@ import { useChatStore } from '../stores/chat'
 const props = defineProps({
   width: { type: Number, default: 600 },
   height: { type: Number, default: 600 },
-  modelPath: { type: String, default: '/models/default.model3.json' }
+  modelPath: { type: String, default: '/models/generated/avatar_default/Haru.model3.json' }
 })
 
 const canvasRef = ref(null)
