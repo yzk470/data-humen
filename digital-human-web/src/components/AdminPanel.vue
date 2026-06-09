@@ -46,9 +46,21 @@
           </el-button>
         </el-upload>
       </el-form-item>
+      <el-form-item v-if="selectedImage" label="AI 辅助">
+        <el-button
+          type="warning"
+          @click="aiDetectFace"
+          :loading="aiDetecting"
+          :disabled="!selectedImage"
+        >
+          🤖 AI 识别人脸
+        </el-button>
+        <span v-if="aiDetected" style="color: #67C23A; margin-left: 8px;">✓ 已识别，可微调</span>
+      </el-form-item>
       <el-form-item v-if="selectedImage" label="框选面部">
         <ImageCropper
           :imageFile="selectedImage"
+          :presetCrop="presetCrop"
           @crop-change="onCropChange"
         />
       </el-form-item>
@@ -96,7 +108,7 @@
 import { ref, onMounted } from 'vue'
 import ImageCropper from './ImageCropper.vue'
 import { useAvatarStore } from '../stores/avatar'
-import { adminApi } from '../services/api'
+import { adminApi, detectFace } from '../services/api'
 import { ElMessage } from 'element-plus'
 
 const prompt = ref('')
@@ -110,6 +122,9 @@ const avatarStore = useAvatarStore()
 const avatarName = ref('')
 const selectedImage = ref(null)
 const cropData = ref(null)
+const aiDetecting = ref(false)
+const aiDetected = ref(false)
+const presetCrop = ref(null)
 
 onMounted(async () => {
   try {
@@ -132,6 +147,28 @@ onMounted(async () => {
 function onImageSelected(uploadFile) {
   selectedImage.value = uploadFile.raw
   cropData.value = null
+  aiDetected.value = false
+  presetCrop.value = null
+}
+
+async function aiDetectFace() {
+  if (!selectedImage.value) return
+  aiDetecting.value = true
+  aiDetected.value = false
+  try {
+    const { data } = await detectFace(selectedImage.value)
+    if (data.code === 200) {
+      presetCrop.value = data.data
+      aiDetected.value = true
+      ElMessage.success('AI 已识别面部区域，可手动微调')
+    } else {
+      ElMessage.warning(data.message || 'AI 识别失败')
+    }
+  } catch (e) {
+    ElMessage.error('AI 识别失败，请手动框选')
+  } finally {
+    aiDetecting.value = false
+  }
 }
 
 function onCropChange(data) {

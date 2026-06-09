@@ -63,5 +63,15 @@ export function switchSessionAvatar(sessionId, avatarId) {
   return api.put(`/session/${sessionId}/avatar`, { avatarId })
 }
 
+// ---- AI 面部检测 API ----
+
+export function detectFace(imageFile) {
+  const formData = new FormData()
+  formData.append('image', imageFile)
+  return adminApi.post('/avatar/detect-face', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
 export { adminApi }
 export default api

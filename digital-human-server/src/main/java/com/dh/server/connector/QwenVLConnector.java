@@ -94,15 +94,37 @@ public class QwenVLConnector {
     }
 
     private FaceRegion parseFaceRegion(String text) throws Exception {
-        String json = text.trim();
-        json = json.replaceAll("```json\\s*", "").replaceAll("```\\s*", "");
-        JsonNode node = objectMapper.readTree(json);
+        String cleaned = text.trim();
+        log.info("QwenVL 原始回复长度: {}, 内容: {}", cleaned.length(), cleaned);
+        // 去掉 markdown 代码块
+        cleaned = cleaned.replaceAll("```json\\s*", "").replaceAll("```\\s*", "");
+        // 替换中文逗号和多余空格
+        cleaned = cleaned.replace("，", ",").replaceAll("\\s+", "");
+        log.info("QwenVL 清理后: {}", cleaned);
+
+        // 用正则分别提取数字（容忍 JSON 格式错误）
+        int x = extractInt(cleaned, "x");
+        int y = extractInt(cleaned, "y");
+        int width = extractInt(cleaned, "width");
+        int height = extractInt(cleaned, "height");
+
         FaceRegion region = new FaceRegion();
-        region.setX(node.path("x").asInt());
-        region.setY(node.path("y").asInt());
-        region.setWidth(node.path("width").asInt());
-        region.setHeight(node.path("height").asInt());
+        region.setX(x);
+        region.setY(y);
+        region.setWidth(width);
+        region.setHeight(height);
         return region;
+    }
+
+    private int extractInt(String text, String key) throws Exception {
+        // 尝试多种格式: "x":180, x:180, "x": 180
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("[\"']?" + key + "[\"']?\\s*[:：]\\s*(\\d+)")
+            .matcher(text);
+        if (m.find()) {
+            return Integer.parseInt(m.group(1));
+        }
+        throw new Exception("无法从回复中提取字段: " + key + ", 回复内容: " + text);
     }
 
     private FaceRegion clampToImage(FaceRegion r) {

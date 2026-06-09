@@ -27,6 +27,10 @@ const props = defineProps({
   imageFile: {
     type: File,
     default: null
+  },
+  presetCrop: {
+    type: Object,
+    default: null
   }
 })
 
@@ -78,6 +82,18 @@ function initCropBox() {
   cropH.value = size
   emitCrop()
 }
+
+// 监听 AI 预设坐标，自动吸附裁剪框
+watch(() => props.presetCrop, (preset) => {
+  if (preset && img && imageLoaded.value) {
+    cropX.value = preset.x
+    cropY.value = preset.y
+    cropW.value = preset.width
+    cropH.value = preset.height
+    nextTick(() => draw())
+    emitCrop()
+  }
+})
 
 function draw() {
   const canvas = canvasRef.value
