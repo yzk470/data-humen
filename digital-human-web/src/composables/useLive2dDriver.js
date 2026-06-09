@@ -1,7 +1,10 @@
 import { ref } from 'vue'
+import * as PIXI from 'pixi.js'
+import { Live2DModel } from 'pixi-live2d-display'
 
 export function useLive2dDriver() {
-  const modelRef = ref(null)
+  const app = ref(null)
+  const model = ref(null)
   const idleMode = ref(true)
   const currentParams = ref({})
   const targetParams = ref({})
@@ -12,29 +15,55 @@ export function useLive2dDriver() {
 
   const PARAM_MAP = {
     ParamMouthOpenY: 'ParamMouthOpenY',
-    ParamMouthForm: 'ParamMouthForm',
-    ParamEyeOpen: 'ParamEyeLOpen',
+    ParamEyeLOpen: 'ParamEyeLOpen',
+    ParamEyeROpen: 'ParamEyeROpen',
     ParamBrowY: 'ParamBrowY',
-    ParamAngry: 'ParamAngry',
     ParamHappy: 'ParamHappy',
     ParamSad: 'ParamSad',
-    ParamSurprise: 'ParamSurprise'
+    ParamSurprise: 'ParamSurprise',
+    ParamAngry: 'ParamAngry',
+    ParamBreath: 'ParamBreath'
   }
 
   async function init(canvas, modelPath) {
-    // Cubism SDK initialization (actual API depends on SDK version)
-    // const { Live2DModel } = await import('@/lib/live2dcubismcore.min.js')
-    // modelRef.value = await Live2DModel.from(modelPath)
-    // modelRef.value.setCanvas(canvas)
-    startRenderLoop()
+    destroy()
+
+    app.value = new PIXI.Application({
+      view: canvas,
+      width: canvas.width,
+      height: canvas.height,
+      backgroundAlpha: 0,
+      antialias: true,
+      resolution: window.devicePixelRatio || 1,
+      autoDensity: true
+    })
+
+    try {
+      model.value = await Live2DModel.from(modelPath)
+      // 居中缩放模型
+      model.value.scale.set(0.5)
+      model.value.x = canvas.width / 2
+      model.value.y = canvas.height / 2
+      model.value.anchor.set(0.5, 0.5)
+
+      app.value.stage.addChild(model.value)
+      startRenderLoop()
+    } catch (e) {
+      console.error('Live2D 模型加载失败:', e, modelPath)
+    }
   }
 
   function startRenderLoop() {
     const render = (timestamp) => {
       const deltaTime = timestamp - lastFrameTime
       lastFrameTime = timestamp
-      updateTransition(deltaTime)
-      applyParams()
+
+      if (model.value) {
+        updateTransition(deltaTime)
+        applyParams()
+      }
+
+      // PIXI handles its own render loop
       animationFrameId = requestAnimationFrame(render)
     }
     animationFrameId = requestAnimationFrame(render)
@@ -47,16 +76,24 @@ export function useLive2dDriver() {
   }
 
   function applyParams() {
+    if (!model.value) return
     const t = transitionProgress.value
-    const result = {}
     for (const key of Object.keys(PARAM_MAP)) {
+      const paramName = PARAM_MAP[key]
       const cur = currentParams.value[key] || 0
       const tar = (targetParams.value[key] !== undefined)
         ? targetParams.value[key]
         : cur
-      result[key] = cur + (tar - cur) * t
+      const val = cur + (tar - cur) * t
+      currentParams.value[key] = val
+
+      try {
+        model.value.internalModel.coreModel.setParameterValueById(
+          paramName, val)
+      } catch (e) {
+        // 参数可能不存在于此模型
+      }
     }
-    currentParams.value = result
   }
 
   function setParams(params) {
@@ -71,50 +108,17 @@ export function useLive2dDriver() {
 
   function destroy() {
     if (animationFrameId) cancelAnimationFrame(animationFrameId)
+    if (model.value) {
+      model.value.destroy()
+      model.value = null
+    }
+    if (app.value) {
+      app.value.destroy(false, { children: true })
+      app.value = null
+    }
     currentParams.value = {}
     targetParams.value = {}
   }
 
-  // Idle animation state
-  let idleStartTime = Date.now()
-  const IDLE_BLINK_INTERVAL_MIN = 3000
-  const IDLE_BLINK_INTERVAL_MAX = 6000
-  let nextBlinkTime = IDLE_BLINK_INTERVAL_MIN
-  let isBlinking = false
-  let blinkProgress = 0
-
-  function getIdleParams() {
-    const now = Date.now()
-    const params = {}
-
-    const breathTime = (now % 4000) / 4000
-    params.ParamBreath = Math.sin(breathTime * Math.PI * 2) * 0.3 + 0.5
-
-    if (!isBlinking && now - idleStartTime > nextBlinkTime) {
-      isBlinking = true
-      blinkProgress = 0
-    }
-
-    if (isBlinking) {
-      blinkProgress += 0.05
-      if (blinkProgress < 0.3) {
-        params.ParamEyeLOpen = 1 - (blinkProgress / 0.3)
-      } else if (blinkProgress < 0.4) {
-        params.ParamEyeLOpen = 0
-      } else if (blinkProgress < 0.7) {
-        params.ParamEyeLOpen = (blinkProgress - 0.4) / 0.3
-      } else {
-        params.ParamEyeLOpen = 1
-        isBlinking = false
-        nextBlinkTime = IDLE_BLINK_INTERVAL_MIN +
-          Math.random() * (IDLE_BLINK_INTERVAL_MAX - IDLE_BLINK_INTERVAL_MIN)
-        idleStartTime = now
-      }
-      params.ParamEyeROpen = params.ParamEyeLOpen
-    }
-
-    return params
-  }
-
-  return { init, setParams, setIdleMode, currentParams, idleMode, destroy, getIdleParams }
+  return { init, setParams, setIdleMode, currentParams, idleMode, destroy }
 }
