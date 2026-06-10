@@ -36,10 +36,22 @@ CREATE TABLE t_dh_config (
     updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE t_user_preference (
+    id                 BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id            VARCHAR(64)  NOT NULL UNIQUE,
+    tts_voice_id       VARCHAR(128),
+    live2d_model_path  VARCHAR(512),
+    updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Default config data
 INSERT INTO t_dh_config (config_key, config_value, description) VALUES
 ('system_prompt', '你是小慧，一个专业的企业前台助手。', '系统 Prompt'),
 ('tts_voice_id', 'longyingxiao_v3', 'TTS 音色 ID'),
 ('tts_speed', '1.0', '语速'),
 ('tts_pitch', '0', '音调'),
-('live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', 'Live2D 模型路径');
+('live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', 'Live2D 模型路径'),
+('tts_voice_options', '[{"label":"莹晓","value":"longyingxiao_v3"}]', 'TTS 音色可选项'),
+('live2d_model_options', '[{"label":"默认 Haru","value":"/models/generated/avatar_default/Haru.model3.json"}]', 'Live2D 形象可选项'),
+('default_tts_voice_id', 'longyingxiao_v3', '默认 TTS 音色'),
+('default_live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', '默认 Live2D 形象');

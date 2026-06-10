@@ -4,3 +4,7 @@ INSERT IGNORE INTO t_dh_config (config_key, config_value, description) VALUES ('
 INSERT IGNORE INTO t_dh_config (config_key, config_value, description) VALUES ('tts_speed', '1.0', 'Speech Speed');
 INSERT IGNORE INTO t_dh_config (config_key, config_value, description) VALUES ('tts_pitch', '0', 'Pitch');
 INSERT IGNORE INTO t_dh_config (config_key, config_value, description) VALUES ('live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', 'Live2D Model Path');
+INSERT IGNORE INTO t_dh_config (config_key, config_value, description) VALUES ('tts_voice_options', '[{"label":"莹晓","value":"longyingxiao_v3"}]', 'TTS Voice Options');
+INSERT IGNORE INTO t_dh_config (config_key, config_value, description) VALUES ('live2d_model_options', '[{"label":"默认 Haru","value":"/models/generated/avatar_default/Haru.model3.json"}]', 'Live2D Model Options');
+INSERT IGNORE INTO t_dh_config (config_key, config_value, description) VALUES ('default_tts_voice_id', 'longyingxiao_v3', 'Default TTS Voice ID');
+INSERT IGNORE INTO t_dh_config (config_key, config_value, description) VALUES ('default_live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', 'Default Live2D Model Path');
