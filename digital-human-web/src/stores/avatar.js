@@ -65,7 +65,7 @@ export const useAvatarStore = defineStore('avatar', {
       }
     },
 
-    /** 用户端：切换当前会话形象 */
+    /** 用户端：切换当前会话形象 (deprecated, 新逻辑走 preferences store) */
     async switchAvatar(avatarId) {
       const sessionStore = useSessionStore()
       if (!sessionStore.sessionId) return
@@ -78,6 +78,7 @@ export const useAvatarStore = defineStore('avatar', {
       return data
     },
 
+    /** 直接设置 modelPath，由 preferences store 驱动 */
     setModelPath(path) {
       this.modelPath = path
     }

@@ -1,30 +1,19 @@
 <template>
   <div class="chat-view">
     <div class="main-stage">
-      <div class="avatar-switcher">
-        <el-dropdown @command="onAvatarSwitch" trigger="click">
-          <el-button type="default" size="small">
-            切换形象
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item
-                v-for="av in avatarStore.avatars"
-                :key="av.id"
-                :command="av.id"
-                :class="{ 'is-active': av.id === avatarStore.currentAvatarId }"
-              >
-                {{ av.name }}{{ av.id === avatarStore.currentAvatarId ? ' √' : '' }}
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+      <div class="runtime-switchers">
+        <el-select v-model="selectedVoiceId" size="small" style="width: 180px" placeholder="音色">
+          <el-option v-for="item in preferencesStore.voiceOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-select v-model="selectedModelPath" size="small" style="width: 220px" placeholder="形象">
+          <el-option v-for="item in preferencesStore.modelOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
       </div>
 
       <Live2DCanvas
         :width="600"
         :height="600"
-        :modelPath="avatarStore.modelPath"
+        :modelPath="preferencesStore.currentModelPath || avatarStore.modelPath"
         :animationParams="chatStore.currentAnimationParams"
         :mouthOpenY="effectiveMouthOpenY"
       />
@@ -40,6 +29,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useSessionStore } from '../stores/session'
 import { useAvatarStore } from '../stores/avatar'
 import { useChatStore } from '../stores/chat'
+import { usePreferencesStore } from '../stores/preferences'
 import { useSignaling } from '../composables/useSignaling'
 import { useRtcClient } from '../composables/useRtcClient'
 import { useAudioAnalyzer } from '../composables/useAudioAnalyzer'
@@ -50,6 +40,7 @@ import InputBar from '../components/InputBar.vue'
 const sessionStore = useSessionStore()
 const avatarStore = useAvatarStore()
 const chatStore = useChatStore()
+const preferencesStore = usePreferencesStore()
 const signaling = useSignaling()
 const rtcClient = useRtcClient()
 const { connect, stop, destroy: destroyAnalyzer, mouthOpenY, ensureAudioContext } = useAudioAnalyzer()
@@ -62,13 +53,19 @@ const effectiveMouthOpenY = computed(() =>
 let audioElement = null
 let fallbackTimer = null
 
-function onAvatarSwitch(avatarId) {
-  avatarStore.switchAvatar(avatarId)
-}
+const selectedVoiceId = computed({
+  get: () => preferencesStore.currentVoiceId,
+  set: value => preferencesStore.setVoice(value)
+})
 
-async function unlockAudio() {
+const selectedModelPath = computed({
+  get: () => preferencesStore.currentModelPath,
+  set: value => preferencesStore.setModel(value)
+})
+
+function unlockAudio() {
   try {
-    await ensureAudioContext()
+    ensureAudioContext()
   } catch (error) {
     console.warn('[Audio] failed to unlock audio context', error)
   }
@@ -170,10 +167,22 @@ watch(
   }
 )
 
+watch(
+  () => preferencesStore.currentModelPath,
+  value => {
+    if (value) {
+      avatarStore.setModelPath(value)
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   await sessionStore.initSession()
-  signaling.connect(sessionStore.sessionId)
+  await preferencesStore.load()
   await avatarStore.loadAvatars()
+  avatarStore.setModelPath(preferencesStore.currentModelPath)
+  signaling.connect(sessionStore.sessionId)
   window.addEventListener('pointerdown', unlockAudio, { passive: true })
 })
 
@@ -209,15 +218,18 @@ onUnmounted(() => {
   position: relative;
 }
 
-.avatar-switcher {
+.runtime-switchers {
   position: absolute;
   top: 20px;
   right: 20px;
   z-index: 100;
+  display: flex;
+  gap: 8px;
 }
 
-.avatar-switcher .el-button {
+.runtime-switchers .el-select {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(4px);
+  border-radius: 4px;
 }
 </style>
