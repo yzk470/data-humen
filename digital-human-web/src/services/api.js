@@ -59,6 +59,8 @@ export function listAvatars() {
   return api.get('/avatar/list')
 }
 
+// Deprecated: 新逻辑走 preferences store (src/services/preferences.js)
+// 但保留切换入口给兼容层
 export function switchSessionAvatar(sessionId, avatarId) {
   return api.put(`/session/${sessionId}/avatar`, { avatarId })
 }

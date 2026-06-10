@@ -44,15 +44,18 @@ public class AdminController {
         return Result.ok();
     }
 
+    @Deprecated
     @GetMapping("/config/tts-voice")
     public Result<Map<String, String>> getTtsVoice() {
+        PreferencesSnapshot snapshot = preferenceConfigService.getAdminSnapshot();
         return Result.ok(Map.of(
-            "voice_id", getOrDefault("tts_voice_id", "longyingxiao_v3"),
+            "voice_id", snapshot.getDefaultVoiceId(),
             "speed", getOrDefault("tts_speed", "1.0"),
             "pitch", getOrDefault("tts_pitch", "0")
         ));
     }
 
+    @Deprecated
     @PutMapping("/config/tts-voice")
     public Result<?> updateTtsVoice(@RequestBody Map<String, String> body) {
         if (body.containsKey("voice_id")) configStorageService.setConfig("tts_voice_id", body.get("voice_id"));
@@ -61,6 +64,7 @@ public class AdminController {
         return Result.ok();
     }
 
+    @Deprecated
     @GetMapping("/config/model")
     public Result<Map<String, String>> getModel() {
         return Result.ok(Map.of(
@@ -68,6 +72,7 @@ public class AdminController {
         ));
     }
 
+    @Deprecated
     @PutMapping("/config/model")
     public Result<?> updateModel(@RequestBody Map<String, String> body) {
         configStorageService.setConfig("live2d_model_path", body.get("live2d_model_path"));
