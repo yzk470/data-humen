@@ -58,7 +58,7 @@ class ChatOrchestratorTest {
         assertEquals("happy", result.getEmotion());
         assertEquals("base64audio==", result.getAudioBase64());
         assertFalse(result.getAnimationParams().isEmpty());
-        assertEquals(0.9, result.getAnimationParams().get("ParamHappy"), 0.01);
+        assertEquals(0.8, result.getAnimationParams().get("ParamMouthForm"), 0.01);
 
         verify(messageStorageService, times(2)).saveMessage(any(MessageEntity.class));
     }
@@ -78,6 +78,6 @@ class ChatOrchestratorTest {
 
         assertEquals("neutral", result.getEmotion());
         assertEquals("今天是星期一。", result.getText());
-        assertEquals(0.5, result.getAnimationParams().get("ParamHappy"), 0.01);
+        assertEquals(0.0, result.getAnimationParams().get("ParamMouthForm"), 0.01);
     }
 }

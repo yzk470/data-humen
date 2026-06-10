@@ -44,7 +44,7 @@ public class AdminController {
     @GetMapping("/config/tts-voice")
     public Result<Map<String, String>> getTtsVoice() {
         return Result.ok(Map.of(
-            "voice_id", getOrDefault("tts_voice_id", "zh-CN-XiaoxiaoNeural"),
+            "voice_id", getOrDefault("tts_voice_id", "longyingxiao_v3"),
             "speed", getOrDefault("tts_speed", "1.0"),
             "pitch", getOrDefault("tts_pitch", "0")
         ));

@@ -67,6 +67,9 @@ export class CubismShader_WebGL {
    */
   private async loadShader(url: string): Promise<string> {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch shader: ${url} (${response.status})`);
+    }
     return await response.text();
   }
 

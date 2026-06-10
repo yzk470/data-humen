@@ -9,12 +9,21 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "app")
 public class AppConfig {
     private DeepSeek deepseek = new DeepSeek();
+    private Tts tts = new Tts();
 
     @Data
     public static class DeepSeek {
         private String apiKey;
         private String apiUrl = "https://api.deepseek.com/v1/chat/completions";
         private String model = "deepseek-chat";
+    }
+
+    @Data
+    public static class Tts {
+        private String apiKey;
+        private String apiUrl = "wss://dashscope.aliyuncs.com/api-ws/v1/inference";
+        private String model = "cosyvoice-v3-flash";
+        private String responseFormat = "mp3";
     }
 
     private Avatar avatar = new Avatar();

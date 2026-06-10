@@ -11,6 +11,7 @@ com\dh\server\storage\mapper\DhConfigMapper.class
 com\dh\server\connector\Connector.class
 com\dh\server\config\WebSocketConfig.class
 com\dh\server\orchestrator\PipelineResult.class
+com\dh\server\config\AppConfig$Tts.class
 com\dh\server\storage\service\ConfigStorageService.class
 com\dh\server\connector\DeepSeekConnector$DeepSeekInput$DeepSeekInputBuilder.class
 com\dh\server\storage\service\SessionStorageService.class
