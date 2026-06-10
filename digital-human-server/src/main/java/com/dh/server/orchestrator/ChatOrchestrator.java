@@ -5,6 +5,8 @@ import com.dh.server.connector.TtsConnector;
 import com.dh.server.emotion.EmotionCalculator;
 import com.dh.server.emotion.EmotionResult;
 import com.dh.server.emotion.EmotionToLive2DParams;
+import com.dh.server.preference.PreferencesSnapshot;
+import com.dh.server.preference.UserPreferenceService;
 import com.dh.server.session.Message;
 import com.dh.server.storage.entity.MessageEntity;
 import com.dh.server.storage.service.ConfigStorageService;
@@ -26,8 +28,9 @@ public class ChatOrchestrator {
     private final EmotionToLive2DParams emotionToParams;
     private final ConfigStorageService configStorageService;
     private final MessageStorageService messageStorageService;
+    private final UserPreferenceService userPreferenceService;
 
-    public PipelineResult processText(String sessionId, String userText) {
+    public PipelineResult processText(String userId, String sessionId, String userText) {
         saveMessage(sessionId, "USER", userText, null);
 
         String systemPrompt = configStorageService.getConfigValue("system_prompt");
@@ -58,7 +61,8 @@ public class ChatOrchestrator {
 
         EmotionResult emotionResult = emotionCalculator.calculate(llmReply);
         String cleanText = emotionCalculator.removeEmotionTag(llmReply);
-        String audioBase64 = ttsConnector.executeAsBase64(cleanText);
+        PreferencesSnapshot preferences = userPreferenceService.getUserSnapshot(userId);
+        String audioBase64 = ttsConnector.executeAsBase64(cleanText, preferences.getCurrentVoiceId());
 
         saveMessage(sessionId, "ASSISTANT", cleanText, emotionResult.getLabel().getLabel());
 

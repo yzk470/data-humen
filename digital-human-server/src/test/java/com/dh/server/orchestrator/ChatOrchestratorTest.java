@@ -4,6 +4,9 @@ import com.dh.server.connector.DeepSeekConnector;
 import com.dh.server.connector.TtsConnector;
 import com.dh.server.emotion.EmotionCalculator;
 import com.dh.server.emotion.EmotionToLive2DParams;
+import com.dh.server.preference.PreferenceOption;
+import com.dh.server.preference.PreferencesSnapshot;
+import com.dh.server.preference.UserPreferenceService;
 import com.dh.server.storage.entity.MessageEntity;
 import com.dh.server.storage.service.ConfigStorageService;
 import com.dh.server.storage.service.MessageStorageService;
@@ -23,6 +26,7 @@ class ChatOrchestratorTest {
     private EmotionToLive2DParams emotionToParams;
     private ConfigStorageService configStorageService;
     private MessageStorageService messageStorageService;
+    private UserPreferenceService userPreferenceService;
     private ChatOrchestrator orchestrator;
 
     @BeforeEach
@@ -33,10 +37,17 @@ class ChatOrchestratorTest {
         emotionToParams = new EmotionToLive2DParams();
         configStorageService = mock(ConfigStorageService.class);
         messageStorageService = mock(MessageStorageService.class);
+        userPreferenceService = mock(UserPreferenceService.class);
+
+        when(userPreferenceService.getUserSnapshot("default-user")).thenReturn(PreferencesSnapshot.builder()
+            .currentVoiceId("longyingxiao_v3")
+            .currentModelPath("/models/generated/avatar_default/Haru.model3.json")
+            .build());
 
         orchestrator = new ChatOrchestrator(
             deepSeekConnector, ttsConnector, emotionCalculator,
-            emotionToParams, configStorageService, messageStorageService
+            emotionToParams, configStorageService, messageStorageService,
+            userPreferenceService
         );
     }
 
@@ -48,10 +59,10 @@ class ChatOrchestratorTest {
             .thenReturn(List.of());
         when(deepSeekConnector.execute(any()))
             .thenReturn("你好！有什么可以帮你的吗？[EMOTION:happy]");
-        when(ttsConnector.executeAsBase64(anyString()))
+        when(ttsConnector.executeAsBase64(anyString(), anyString()))
             .thenReturn("base64audio==");
 
-        PipelineResult result = orchestrator.processText("session-1", "你好");
+        PipelineResult result = orchestrator.processText("default-user", "session-1", "你好");
 
         assertNotNull(result);
         assertEquals("你好！有什么可以帮你的吗？", result.getText());
@@ -64,6 +75,22 @@ class ChatOrchestratorTest {
     }
 
     @Test
+    void shouldUseCurrentUserVoicePreferenceForTts() {
+        when(configStorageService.getConfigValue("system_prompt"))
+            .thenReturn("你是助手。");
+        when(messageStorageService.getRecentMessages("session-1", 10))
+            .thenReturn(List.of());
+        when(deepSeekConnector.execute(any()))
+            .thenReturn("你好[EMOTION:happy]");
+        when(ttsConnector.executeAsBase64(anyString(), anyString()))
+            .thenReturn("base64audio==");
+
+        orchestrator.processText("default-user", "session-1", "你好");
+
+        verify(ttsConnector).executeAsBase64("你好", "longyingxiao_v3");
+    }
+
+    @Test
     void shouldHandleLlmReplyWithoutEmotionTag() {
         when(configStorageService.getConfigValue("system_prompt"))
             .thenReturn("你是一个助手。");
@@ -71,10 +98,10 @@ class ChatOrchestratorTest {
             .thenReturn(List.of());
         when(deepSeekConnector.execute(any()))
             .thenReturn("今天是星期一。");
-        when(ttsConnector.executeAsBase64(anyString()))
+        when(ttsConnector.executeAsBase64(anyString(), anyString()))
             .thenReturn("audio");
 
-        PipelineResult result = orchestrator.processText("s1", "今天星期几？");
+        PipelineResult result = orchestrator.processText("default-user", "s1", "今天星期几？");
 
         assertEquals("neutral", result.getEmotion());
         assertEquals("今天是星期一。", result.getText());

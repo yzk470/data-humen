@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ChatController {
 
+    private static final String DEFAULT_USER_ID = "default-user";
+
     private final ChatOrchestrator chatOrchestrator;
     private final SessionManager sessionManager;
 
@@ -24,7 +26,7 @@ public class ChatController {
         }
         sessionManager.touchLastActive(request.getSessionId());
         PipelineResult result = chatOrchestrator.processText(
-            request.getSessionId(), request.getText()
+            DEFAULT_USER_ID, request.getSessionId(), request.getText()
         );
         return Result.ok(result);
     }

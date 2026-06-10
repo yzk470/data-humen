@@ -3,6 +3,8 @@ package com.dh.server.controller;
 import com.dh.server.avatar.ModelFileService;
 import com.dh.server.common.BusinessException;
 import com.dh.server.common.Result;
+import com.dh.server.preference.PreferencesSnapshot;
+import com.dh.server.preference.UserPreferenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -18,12 +20,18 @@ import java.util.Map;
 public class AvatarController {
 
     private final ModelFileService modelFileService;
+    private final UserPreferenceService userPreferenceService;
 
     @GetMapping("/list")
     public Result<Map<String, Object>> listAvatars() {
         try {
             List<ModelFileService.AvatarInfo> avatars = modelFileService.listAvatars();
-            String defaultId = avatars.isEmpty() ? "" : avatars.get(0).getId();
+            PreferencesSnapshot snapshot = userPreferenceService.getUserSnapshot("default-user");
+            String defaultId = avatars.stream()
+                .filter(it -> it.getModelPath().equals(snapshot.getDefaultModelPath()))
+                .map(ModelFileService.AvatarInfo::getId)
+                .findFirst()
+                .orElse(avatars.isEmpty() ? "" : avatars.get(0).getId());
             return Result.ok(Map.of(
                 "avatars", avatars,
                 "defaultId", defaultId

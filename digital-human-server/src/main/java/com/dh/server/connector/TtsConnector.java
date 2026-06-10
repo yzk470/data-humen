@@ -29,6 +29,22 @@ public class TtsConnector implements Connector<String, byte[]> {
 
     @Override
     public byte[] execute(String text) {
+        return execute(text, null);
+    }
+
+    public String executeAsBase64(String text) {
+        return executeAsBase64(text, null);
+    }
+
+    public String executeAsBase64(String text, String preferredVoiceId) {
+        byte[] audio = execute(text, preferredVoiceId);
+        if (audio.length == 0) {
+            return "";
+        }
+        return Base64.getEncoder().encodeToString(audio);
+    }
+
+    public byte[] execute(String text, String preferredVoiceId) {
         if (text == null || text.isBlank()) {
             return new byte[0];
         }
@@ -41,7 +57,11 @@ public class TtsConnector implements Connector<String, byte[]> {
 
         String model = isBlank(appConfig.getTts().getModel()) ? DEFAULT_MODEL : appConfig.getTts().getModel();
         String websocketUrl = isBlank(appConfig.getTts().getApiUrl()) ? DEFAULT_WS_URL : appConfig.getTts().getApiUrl();
-        Set<String> voices = buildVoiceCandidates();
+        LinkedHashSet<String> voices = new LinkedHashSet<>();
+        if (preferredVoiceId != null && !preferredVoiceId.isBlank()) {
+            voices.add(preferredVoiceId.trim());
+        }
+        voices.addAll(buildVoiceCandidates());
 
         int attempt = 0;
         String lastError = "no attempts executed";
@@ -71,14 +91,6 @@ public class TtsConnector implements Connector<String, byte[]> {
 
         log.warn("Aliyun TTS failed after {} attempts. Last error: {}", attempt, lastError);
         return new byte[0];
-    }
-
-    public String executeAsBase64(String text) {
-        byte[] audio = execute(text);
-        if (audio.length == 0) {
-            return "";
-        }
-        return Base64.getEncoder().encodeToString(audio);
     }
 
     private byte[] synthesize(String apiKey, String websocketUrl, String model, String voice, String text) throws Exception {

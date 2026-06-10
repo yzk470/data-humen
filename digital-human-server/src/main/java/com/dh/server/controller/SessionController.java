@@ -2,6 +2,8 @@ package com.dh.server.controller;
 
 import com.dh.server.avatar.ModelFileService;
 import com.dh.server.common.Result;
+import com.dh.server.preference.PreferencesSnapshot;
+import com.dh.server.preference.UserPreferenceService;
 import com.dh.server.session.Session;
 import com.dh.server.session.SessionManager;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +22,7 @@ public class SessionController {
 
     private final SessionManager sessionManager;
     private final ModelFileService modelFileService;
+    private final UserPreferenceService userPreferenceService;
 
     @PostMapping("/create")
     public Result<Map<String, String>> create(HttpServletRequest request) {
@@ -61,6 +64,8 @@ public class SessionController {
 
         try {
             ModelFileService.AvatarInfo info = modelFileService.getAvatarInfo(avatarId);
+            PreferencesSnapshot currentPrefs = userPreferenceService.getUserSnapshot("default-user");
+            userPreferenceService.saveUserPreference("default-user", currentPrefs.getCurrentVoiceId(), info.getModelPath());
             return Result.ok(Map.of("modelPath", info.getModelPath()));
         } catch (IllegalArgumentException e) {
             return Result.fail(404, "形象不存在: " + avatarId);
