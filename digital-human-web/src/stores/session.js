@@ -5,7 +5,8 @@ export const useSessionStore = defineStore('session', {
   state: () => ({
     sessionId: null,
     status: null,
-    loading: false
+    loading: false,
+    userId: 'default-user'
   }),
   actions: {
     async initSession() {
