@@ -8,8 +8,46 @@
       <el-form-item>
         <el-button type="primary" @click="savePrompt" :loading="savingPrompt">保存 Prompt</el-button>
       </el-form-item>
+
       <el-divider />
-      <el-form-item label="TTS 音色 ID">
+      <h3>音色管理</h3>
+      <div v-for="(item, index) in preferenceConfig.voiceOptions" :key="`voice-${index}`" class="option-row">
+        <el-input v-model="item.label" placeholder="显示名称" style="width: 180px" />
+        <el-input v-model="item.value" placeholder="voice id" style="width: 240px" />
+        <el-button type="danger" @click="removeVoice(index)">删除</el-button>
+      </div>
+      <el-form-item>
+        <el-button @click="addVoice">新增音色</el-button>
+      </el-form-item>
+      <el-form-item label="默认音色">
+        <el-select v-model="preferenceConfig.defaultVoiceId" style="width: 300px">
+          <el-option v-for="item in preferenceConfig.voiceOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="savePreferenceConfig" :loading="savingPreferences">保存偏好配置</el-button>
+      </el-form-item>
+
+      <el-divider />
+      <h3>形象管理</h3>
+      <div v-for="(item, index) in preferenceConfig.modelOptions" :key="`model-${index}`" class="option-row">
+        <el-select v-model="item.value" style="width: 320px">
+          <el-option v-for="avatar in avatarStore.avatars" :key="avatar.modelPath" :label="avatar.name" :value="avatar.modelPath" />
+        </el-select>
+        <el-input v-model="item.label" placeholder="显示名称" style="width: 180px" />
+        <el-button type="danger" @click="removeModel(index)">删除</el-button>
+      </div>
+      <el-form-item>
+        <el-button @click="addModel">新增形象</el-button>
+      </el-form-item>
+      <el-form-item label="默认形象">
+        <el-select v-model="preferenceConfig.defaultModelPath" style="width: 300px">
+          <el-option v-for="item in preferenceConfig.modelOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </el-form-item>
+
+      <el-divider />
+      <el-form-item label="TTS 音色 ID (旧)">
         <el-input v-model="ttsConfig.voice_id" placeholder="音色 ID" />
       </el-form-item>
       <el-form-item label="语速">
@@ -22,12 +60,13 @@
         <el-button type="primary" @click="saveTtsConfig" :loading="savingTts">保存 TTS 配置</el-button>
       </el-form-item>
       <el-divider />
-      <el-form-item label="Live2D 模型路径">
+      <el-form-item label="Live2D 模型路径 (旧)">
         <el-input v-model="modelPath" placeholder="/models/default.model3.json" />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="saveModelPath" :loading="savingModel">保存模型配置</el-button>
       </el-form-item>
+
       <el-divider />
       <h3>数字人形象管理</h3>
 
@@ -109,6 +148,7 @@ import { ref, onMounted } from 'vue'
 import ImageCropper from './ImageCropper.vue'
 import { useAvatarStore } from '../stores/avatar'
 import { adminApi, detectFace } from '../services/api'
+import { getAdminPreferences, updateAdminPreferences } from '../services/preferences'
 import { ElMessage } from 'element-plus'
 
 const prompt = ref('')
@@ -117,6 +157,7 @@ const ttsConfig = ref({ voice_id: '', speed: '1.0', pitch: '0' })
 const savingTts = ref(false)
 const modelPath = ref('')
 const savingModel = ref(false)
+const savingPreferences = ref(false)
 
 const avatarStore = useAvatarStore()
 const avatarName = ref('')
@@ -125,6 +166,13 @@ const cropData = ref(null)
 const aiDetecting = ref(false)
 const aiDetected = ref(false)
 const presetCrop = ref(null)
+
+const preferenceConfig = ref({
+  voiceOptions: [],
+  modelOptions: [],
+  defaultVoiceId: '',
+  defaultModelPath: ''
+})
 
 onMounted(async () => {
   try {
@@ -141,8 +189,52 @@ onMounted(async () => {
     }
     modelPath.value = modelRes.data.data.live2d_model_path || ''
   } catch (e) { /* ignore */ }
-  avatarStore.loadAdminAvatars()
+  await avatarStore.loadAdminAvatars()
+  await loadPreferenceConfig()
 })
+
+async function loadPreferenceConfig() {
+  try {
+    const { data } = await getAdminPreferences()
+    if (data.code === 200) {
+      preferenceConfig.value = data.data
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function addVoice() {
+  preferenceConfig.value.voiceOptions.push({ label: '', value: '' })
+}
+
+function removeVoice(index) {
+  preferenceConfig.value.voiceOptions.splice(index, 1)
+}
+
+function addModel() {
+  const first = avatarStore.avatars[0]
+  if (!first) return
+  preferenceConfig.value.modelOptions.push({ label: first.name, value: first.modelPath })
+}
+
+function removeModel(index) {
+  preferenceConfig.value.modelOptions.splice(index, 1)
+}
+
+async function savePreferenceConfig() {
+  savingPreferences.value = true
+  try {
+    const { data } = await updateAdminPreferences(preferenceConfig.value)
+    if (data.code === 200) {
+      ElMessage.success('偏好配置已保存')
+    } else {
+      ElMessage.error(data.message || '保存失败')
+    }
+  } catch (e) {
+    ElMessage.error('保存偏好配置失败')
+  } finally {
+    savingPreferences.value = false
+  }
+}
 
 function onImageSelected(uploadFile) {
   selectedImage.value = uploadFile.raw
@@ -234,6 +326,12 @@ async function saveModelPath() {
   padding: 24px;
   background: white;
   border-radius: 12px;
+}
+.option-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
 }
 .avatar-gallery {
   display: flex;
