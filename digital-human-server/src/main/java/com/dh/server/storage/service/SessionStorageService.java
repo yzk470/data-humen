@@ -2,10 +2,12 @@ package com.dh.server.storage.service;
 
 import com.dh.server.storage.entity.SessionEntity;
 import com.dh.server.storage.mapper.SessionMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -16,6 +18,7 @@ public class SessionStorageService {
 
     private final SessionMapper sessionMapper;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     private static final String CACHE_PREFIX = "session:";
     private static final Duration CACHE_TTL = Duration.ofMinutes(30);
@@ -28,9 +31,9 @@ public class SessionStorageService {
 
     public SessionEntity findById(String sessionId) {
         String key = CACHE_PREFIX + sessionId;
-        SessionEntity cached = (SessionEntity) redisTemplate.opsForValue().get(key);
+        Object cached = redisTemplate.opsForValue().get(key);
         if (cached != null) {
-            return cached;
+            return objectMapper.convertValue(cached, SessionEntity.class);
         }
         SessionEntity fromDb = sessionMapper.selectById(sessionId);
         if (fromDb != null) {

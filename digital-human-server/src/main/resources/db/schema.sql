@@ -39,7 +39,7 @@ CREATE TABLE t_dh_config (
 -- Default config data
 INSERT INTO t_dh_config (config_key, config_value, description) VALUES
 ('system_prompt', '你是小慧，一个专业的企业前台助手。', '系统 Prompt'),
-('tts_voice_id', 'zh-CN-XiaoxiaoNeural', 'TTS 音色 ID'),
+('tts_voice_id', 'longyingxiao_v3', 'TTS 音色 ID'),
 ('tts_speed', '1.0', '语速'),
 ('tts_pitch', '0', '音调'),
-('live2d_model_path', '/models/default.model3.json', 'Live2D 模型路径');
+('live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', 'Live2D 模型路径');

@@ -1,2 +1,7 @@
 C:\Users\90852\Desktop\实验二\digital-human-server\src\test\java\com\dh\server\orchestrator\ChatOrchestratorTest.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\test\java\com\dh\server\avatar\ModelFileServiceTest.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\test\java\com\dh\server\connector\QwenVLConnectorTest.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\test\java\com\dh\server\connector\TtsConnectorIntegrationTest.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\test\java\com\dh\server\emotion\EmotionCalculatorTest.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\test\java\com\dh\server\avatar\AvatarServiceTest.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\test\java\com\dh\server\avatar\TextureServiceTest.java

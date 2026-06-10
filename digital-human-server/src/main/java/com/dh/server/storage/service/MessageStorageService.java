@@ -3,9 +3,11 @@ package com.dh.server.storage.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.dh.server.storage.entity.MessageEntity;
 import com.dh.server.storage.mapper.MessageMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -17,6 +19,7 @@ public class MessageStorageService {
 
     private final MessageMapper messageMapper;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     private static final String HISTORY_CACHE_PREFIX = "session:history:";
     private static final Duration CACHE_TTL = Duration.ofMinutes(30);
@@ -26,25 +29,29 @@ public class MessageStorageService {
         message.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(message);
         String key = HISTORY_CACHE_PREFIX + message.getSessionId();
-        @SuppressWarnings("unchecked")
-        List<MessageEntity> cached = (List<MessageEntity>) redisTemplate.opsForValue().get(key);
-        if (cached == null) {
-            cached = new ArrayList<>();
+        Object cached = redisTemplate.opsForValue().get(key);
+        List<MessageEntity> list;
+        if (cached != null) {
+            list = objectMapper.convertValue(cached,
+                objectMapper.getTypeFactory().constructCollectionType(List.class, MessageEntity.class));
+        } else {
+            list = new ArrayList<>();
         }
-        cached.add(message);
-        if (cached.size() > RECENT_COUNT) {
-            cached = cached.subList(cached.size() - RECENT_COUNT, cached.size());
+        list.add(message);
+        if (list.size() > RECENT_COUNT) {
+            list = list.subList(list.size() - RECENT_COUNT, list.size());
         }
-        redisTemplate.opsForValue().set(key, cached, CACHE_TTL);
+        redisTemplate.opsForValue().set(key, list, CACHE_TTL);
     }
 
     public List<MessageEntity> getRecentMessages(String sessionId, int count) {
         String key = HISTORY_CACHE_PREFIX + sessionId;
-        @SuppressWarnings("unchecked")
-        List<MessageEntity> cached = (List<MessageEntity>) redisTemplate.opsForValue().get(key);
+        Object cached = redisTemplate.opsForValue().get(key);
         if (cached != null) {
-            if (cached.size() <= count) return cached;
-            return cached.subList(cached.size() - count, cached.size());
+            List<MessageEntity> list = objectMapper.convertValue(cached,
+                objectMapper.getTypeFactory().constructCollectionType(List.class, MessageEntity.class));
+            if (list.size() <= count) return list;
+            return list.subList(list.size() - count, list.size());
         }
         return loadRecentFromDb(sessionId, count);
     }

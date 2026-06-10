@@ -6,12 +6,16 @@ C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\serve
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\mapper\SessionMapper.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\common\GlobalExceptionHandler.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\orchestrator\PipelineResult.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\avatar\AvatarService.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\Connector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\controller\SessionController.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\emotion\EmotionResult.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\QwenVLConnector.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\TextureFusionConnector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\connector\AsrConnector.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\service\MessageStorageService.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\config\WebSocketConfig.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\controller\AvatarController.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\entity\DhConfigEntity.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\controller\ChatController.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\session\Session.java
@@ -19,7 +23,9 @@ C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\serve
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\entity\MessageEntity.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\config\RedisConfig.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\session\SessionManager.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\avatar\ModelFileService.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\emotion\EmotionToLive2DParams.java
+C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\avatar\TextureService.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\mapper\DhConfigMapper.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\storage\mapper\MessageMapper.java
 C:\Users\90852\Desktop\实验二\digital-human-server\src\main\java\com\dh\server\controller\AdminController.java

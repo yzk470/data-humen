@@ -28,13 +28,88 @@
       <el-form-item>
         <el-button type="primary" @click="saveModelPath" :loading="savingModel">保存模型配置</el-button>
       </el-form-item>
+      <el-divider />
+      <h3>数字人形象管理</h3>
+
+      <el-form-item label="形象名称">
+        <el-input v-model="avatarName" placeholder="例如：知性女助理" style="width: 260px" />
+      </el-form-item>
+      <el-form-item label="选择图片">
+        <el-upload
+          :auto-upload="false"
+          :show-file-list="false"
+          :on-change="onImageSelected"
+          accept="image/png,image/jpeg"
+        >
+          <el-button type="primary" :disabled="avatarStore.uploading">
+            选择二次元图片
+          </el-button>
+        </el-upload>
+      </el-form-item>
+      <el-form-item v-if="selectedImage" label="AI 辅助">
+        <el-button
+          type="warning"
+          @click="aiDetectFace"
+          :loading="aiDetecting"
+          :disabled="!selectedImage"
+        >
+          🤖 AI 识别人脸
+        </el-button>
+        <span v-if="aiDetected" style="color: #67C23A; margin-left: 8px;">✓ 已识别，可微调</span>
+      </el-form-item>
+      <el-form-item v-if="selectedImage" label="框选面部">
+        <ImageCropper
+          :imageFile="selectedImage"
+          :presetCrop="presetCrop"
+          @crop-change="onCropChange"
+        />
+      </el-form-item>
+      <el-form-item v-if="cropData">
+        <el-button
+          type="success"
+          @click="generateAvatar"
+          :loading="avatarStore.uploading"
+          :disabled="!avatarName.trim()"
+        >
+          开始生成形象
+        </el-button>
+      </el-form-item>
+
+      <el-divider />
+      <h4>形象库（共 {{ avatarStore.avatars.length }} 个）</h4>
+      <el-form-item>
+        <div class="avatar-gallery">
+          <div
+            v-for="av in avatarStore.avatars"
+            :key="av.id"
+            class="avatar-card"
+          >
+            <img :src="av.thumbnailPath" class="avatar-thumb" />
+            <div class="avatar-name">{{ av.name }}</div>
+            <el-button
+              size="small"
+              type="danger"
+              @click="deleteAvatar(av.id)"
+              :disabled="avatarStore.avatars.length <= 1"
+            >
+              删除
+            </el-button>
+          </div>
+          <div v-if="avatarStore.avatars.length === 0" class="no-avatar">
+            暂无形象，请上传生成
+          </div>
+        </div>
+      </el-form-item>
     </el-form>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import ImageCropper from './ImageCropper.vue'
+import { useAvatarStore } from '../stores/avatar'
+import { adminApi, detectFace } from '../services/api'
+import { ElMessage } from 'element-plus'
 
 const prompt = ref('')
 const savingPrompt = ref(false)
@@ -42,14 +117,21 @@ const ttsConfig = ref({ voice_id: '', speed: '1.0', pitch: '0' })
 const savingTts = ref(false)
 const modelPath = ref('')
 const savingModel = ref(false)
-const api = axios.create({ baseURL: '/api/admin' })
+
+const avatarStore = useAvatarStore()
+const avatarName = ref('')
+const selectedImage = ref(null)
+const cropData = ref(null)
+const aiDetecting = ref(false)
+const aiDetected = ref(false)
+const presetCrop = ref(null)
 
 onMounted(async () => {
   try {
     const [promptRes, ttsRes, modelRes] = await Promise.all([
-      api.get('/config/prompt'),
-      api.get('/config/tts-voice'),
-      api.get('/config/model')
+      adminApi.get('/config/prompt'),
+      adminApi.get('/config/tts-voice'),
+      adminApi.get('/config/model')
     ])
     prompt.value = promptRes.data.data.system_prompt || ''
     ttsConfig.value = {
@@ -59,17 +141,78 @@ onMounted(async () => {
     }
     modelPath.value = modelRes.data.data.live2d_model_path || ''
   } catch (e) { /* ignore */ }
+  avatarStore.loadAdminAvatars()
 })
+
+function onImageSelected(uploadFile) {
+  selectedImage.value = uploadFile.raw
+  cropData.value = null
+  aiDetected.value = false
+  presetCrop.value = null
+}
+
+async function aiDetectFace() {
+  if (!selectedImage.value) return
+  aiDetecting.value = true
+  aiDetected.value = false
+  try {
+    const { data } = await detectFace(selectedImage.value)
+    if (data.code === 200) {
+      presetCrop.value = data.data
+      aiDetected.value = true
+      ElMessage.success('AI 已识别面部区域，可手动微调')
+    } else {
+      ElMessage.warning(data.message || 'AI 识别失败')
+    }
+  } catch (e) {
+    ElMessage.error('AI 识别失败，请手动框选')
+  } finally {
+    aiDetecting.value = false
+  }
+}
+
+function onCropChange(data) {
+  cropData.value = data
+}
+
+async function generateAvatar() {
+  if (!cropData.value || !avatarName.value.trim()) return
+  try {
+    await avatarStore.uploadAvatar(
+      selectedImage.value,
+      avatarName.value.trim(),
+      cropData.value.x,
+      cropData.value.y,
+      cropData.value.width,
+      cropData.value.height
+    )
+    selectedImage.value = null
+    cropData.value = null
+    avatarName.value = ''
+    ElMessage.success('形象生成成功！')
+  } catch (e) {
+    ElMessage.error('生成失败: ' + (e.message || '未知错误'))
+  }
+}
+
+async function deleteAvatar(id) {
+  try {
+    await avatarStore.deleteAvatar(id)
+    ElMessage.success('已删除')
+  } catch (e) {
+    ElMessage.error('删除失败')
+  }
+}
 
 async function savePrompt() {
   savingPrompt.value = true
-  await api.put('/config/prompt', { system_prompt: prompt.value })
+  await adminApi.put('/config/prompt', { system_prompt: prompt.value })
   savingPrompt.value = false
 }
 
 async function saveTtsConfig() {
   savingTts.value = true
-  await api.put('/config/tts-voice', {
+  await adminApi.put('/config/tts-voice', {
     voice_id: ttsConfig.value.voice_id,
     speed: String(ttsConfig.value.speed),
     pitch: String(ttsConfig.value.pitch)
@@ -79,7 +222,7 @@ async function saveTtsConfig() {
 
 async function saveModelPath() {
   savingModel.value = true
-  await api.put('/config/model', { live2d_model_path: modelPath.value })
+  await adminApi.put('/config/model', { live2d_model_path: modelPath.value })
   savingModel.value = false
 }
 </script>
@@ -91,5 +234,33 @@ async function saveModelPath() {
   padding: 24px;
   background: white;
   border-radius: 12px;
+}
+.avatar-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.avatar-card {
+  width: 140px;
+  text-align: center;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 8px;
+}
+.avatar-thumb {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #f5f5f5;
+}
+.avatar-name {
+  font-size: 13px;
+  margin: 6px 0;
+  color: #333;
+}
+.no-avatar {
+  color: #999;
+  font-size: 14px;
 }
 </style>

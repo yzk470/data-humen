@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.dh.server.connector.QwenVLConnectorTest
+-------------------------------------------------------------------------------
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.463 s -- in com.dh.server.connector.QwenVLConnectorTest

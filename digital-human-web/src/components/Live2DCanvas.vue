@@ -1,42 +1,79 @@
 <template>
-  <canvas ref="canvasRef" :width="width" :height="height" class="live2d-canvas"></canvas>
+  <div class="live2d-container" :style="{ width: width + 'px', height: height + 'px' }">
+    <canvas ref="canvasRef" class="live2d-canvas"></canvas>
+    <div v-if="error" class="live2d-error">{{ error }}</div>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useLive2dDriver } from '../composables/useLive2dDriver'
-import { useChatStore } from '../stores/chat'
 
 const props = defineProps({
   width: { type: Number, default: 600 },
   height: { type: Number, default: 600 },
-  modelPath: { type: String, default: '/models/default.model3.json' }
+  modelPath: { type: String, default: '/models/generated/avatar_default/Haru.model3.json' },
+  animationParams: { type: Object, default: () => ({}) },
+  mouthOpenY: { type: Number, default: 0 }
 })
 
 const canvasRef = ref(null)
-const chatStore = useChatStore()
-const driver = useLive2dDriver()
+const { init, setParams, destroy, error } = useLive2dDriver()
 
-onMounted(async () => {
-  if (canvasRef.value) {
-    await driver.init(canvasRef.value, props.modelPath)
-  }
+async function initModel() {
+  if (!canvasRef.value || !props.modelPath) return
+  await init(canvasRef.value, props.modelPath)
+  applyAnimation()
+}
+
+function applyAnimation() {
+  setParams({
+    ...props.animationParams,
+    ParamMouthOpenY: props.mouthOpenY
+  })
+}
+
+onMounted(() => {
+  initModel()
 })
 
-watch(() => chatStore.currentAnimationParams, (params) => {
-  if (params && Object.keys(params).length > 0) {
-    driver.setParams(params)
-  }
-}, { deep: true })
+watch(() => props.modelPath, () => {
+  initModel()
+})
 
-onUnmounted(() => {
-  driver.destroy()
+watch(
+  () => [props.animationParams, props.mouthOpenY],
+  () => {
+    applyAnimation()
+  },
+  { deep: true }
+)
+
+onBeforeUnmount(() => {
+  destroy()
 })
 </script>
 
 <style scoped>
+.live2d-container {
+  overflow: hidden;
+  position: relative;
+  border-radius: 16px;
+}
+
 .live2d-canvas {
+  width: 100%;
+  height: 100%;
   display: block;
-  margin: 0 auto;
+}
+
+.live2d-error {
+  position: absolute;
+  inset: auto 16px 16px 16px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 12px;
 }
 </style>

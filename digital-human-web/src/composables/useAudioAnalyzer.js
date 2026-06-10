@@ -5,18 +5,45 @@ export function useAudioAnalyzer() {
   const audioContext = ref(null)
   const analyserNode = ref(null)
   const isAnalyzing = ref(false)
+  const sourceNode = ref(null)
 
   let animationFrameId = null
 
-  function connect(audioElement) {
+  async function ensureAudioContext() {
     if (!audioContext.value) {
       audioContext.value = new (window.AudioContext || window.webkitAudioContext)()
     }
+
+    if (audioContext.value.state === 'suspended') {
+      await audioContext.value.resume()
+    }
+  }
+
+  async function connect(audioElement) {
+    await ensureAudioContext()
+
+    if (sourceNode.value) {
+      try {
+        sourceNode.value.disconnect()
+      } catch (_) {
+        // Ignore disconnect failures for replaced elements.
+      }
+      sourceNode.value = null
+    }
+
+    if (analyserNode.value) {
+      try {
+        analyserNode.value.disconnect()
+      } catch (_) {
+        // Ignore disconnect failures during rebind.
+      }
+    }
+
     analyserNode.value = audioContext.value.createAnalyser()
     analyserNode.value.fftSize = 2048
 
-    const source = audioContext.value.createMediaElementSource(audioElement)
-    source.connect(analyserNode.value)
+    sourceNode.value = audioContext.value.createMediaElementSource(audioElement)
+    sourceNode.value.connect(analyserNode.value)
     analyserNode.value.connect(audioContext.value.destination)
 
     isAnalyzing.value = true
@@ -45,16 +72,35 @@ export function useAudioAnalyzer() {
   function stop() {
     isAnalyzing.value = false
     if (animationFrameId) cancelAnimationFrame(animationFrameId)
+    animationFrameId = null
+    mouthOpenY.value = 0
   }
 
   function destroy() {
     stop()
+    if (sourceNode.value) {
+      try {
+        sourceNode.value.disconnect()
+      } catch (_) {
+        // Ignore teardown disconnect failures.
+      }
+      sourceNode.value = null
+    }
+    if (analyserNode.value) {
+      try {
+        analyserNode.value.disconnect()
+      } catch (_) {
+        // Ignore teardown disconnect failures.
+      }
+      analyserNode.value = null
+    }
     if (audioContext.value) {
       audioContext.value.close()
+      audioContext.value = null
     }
   }
 
   onUnmounted(() => destroy())
 
-  return { connect, stop, destroy, mouthOpenY, isAnalyzing }
+  return { connect, stop, destroy, mouthOpenY, isAnalyzing, ensureAudioContext }
 }

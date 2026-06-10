@@ -49,7 +49,7 @@ class EmotionCalculatorTest {
     void shouldMapHappyToCorrectLive2DParams() {
         EmotionToLive2DParams mapper = new EmotionToLive2DParams();
         var params = mapper.mapToParams(EmotionLabel.HAPPY);
-        assertEquals(0.9, params.get("ParamHappy"), 0.01);
-        assertEquals(1.0, params.get("ParamEyeOpen"), 0.01);
+        assertEquals(0.8, params.get("ParamMouthForm"), 0.01);
+        assertEquals(0.35, params.get("ParamEyeForm"), 0.01);
     }
 }

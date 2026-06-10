@@ -7,6 +7,7 @@ export const useChatStore = defineStore('chat', {
     messages: [],
     currentEmotion: null,
     currentAnimationParams: {},
+    currentAudioBase64: '',
     sending: false
   }),
   actions: {
@@ -28,6 +29,7 @@ export const useChatStore = defineStore('chat', {
           })
           this.currentEmotion = result.emotion
           this.currentAnimationParams = result.animationParams
+          this.currentAudioBase64 = result.audioBase64 || ''
           return result
         }
       } finally {
@@ -36,6 +38,9 @@ export const useChatStore = defineStore('chat', {
     },
     clearMessages() {
       this.messages = []
+      this.currentEmotion = null
+      this.currentAnimationParams = {}
+      this.currentAudioBase64 = ''
     }
   }
 })
