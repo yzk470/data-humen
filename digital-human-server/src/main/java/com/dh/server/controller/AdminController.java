@@ -5,6 +5,8 @@ import com.dh.server.avatar.ModelFileService;
 import com.dh.server.common.BusinessException;
 import com.dh.server.connector.QwenVLConnector;
 import com.dh.server.common.Result;
+import com.dh.server.preference.PreferenceConfigService;
+import com.dh.server.preference.PreferencesSnapshot;
 import com.dh.server.storage.entity.MessageEntity;
 import com.dh.server.storage.service.ConfigStorageService;
 import com.dh.server.storage.service.MessageStorageService;
@@ -24,6 +26,7 @@ import java.util.Map;
 public class AdminController {
 
     private final ConfigStorageService configStorageService;
+    private final PreferenceConfigService preferenceConfigService;
     private final MessageStorageService messageStorageService;
     private final AvatarService avatarService;
     private final ModelFileService modelFileService;
@@ -68,6 +71,17 @@ public class AdminController {
     @PutMapping("/config/model")
     public Result<?> updateModel(@RequestBody Map<String, String> body) {
         configStorageService.setConfig("live2d_model_path", body.get("live2d_model_path"));
+        return Result.ok();
+    }
+
+    @GetMapping("/config/preferences")
+    public Result<PreferencesSnapshot> getPreferenceConfig() {
+        return Result.ok(preferenceConfigService.getAdminSnapshot());
+    }
+
+    @PutMapping("/config/preferences")
+    public Result<?> updatePreferenceConfig(@RequestBody PreferencesSnapshot request) {
+        preferenceConfigService.saveAdminSnapshot(request);
         return Result.ok();
     }
 
