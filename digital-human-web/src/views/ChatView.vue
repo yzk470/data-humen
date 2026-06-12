@@ -43,14 +43,13 @@ const chatStore = useChatStore()
 const preferencesStore = usePreferencesStore()
 const signaling = useSignaling()
 const rtcClient = useRtcClient()
-const { connect, stop, destroy: destroyAnalyzer, mouthOpenY, ensureAudioContext } = useAudioAnalyzer()
+const { playFromBase64, stop, destroy: destroyAnalyzer, mouthOpenY, ensureAudioContext } = useAudioAnalyzer()
 
 const fallbackMouthOpenY = ref(0)
 const effectiveMouthOpenY = computed(() =>
   mouthOpenY.value > 0.02 ? mouthOpenY.value : fallbackMouthOpenY.value
 )
 
-let audioElement = null
 let fallbackTimer = null
 
 const selectedVoiceId = computed({
@@ -101,55 +100,16 @@ async function playAssistantAudio(base64, text) {
   clearFallbackAnimation()
   stop()
 
-  if (audioElement) {
-    audioElement.pause()
-    audioElement.src = ''
-    audioElement = null
-  }
-
   if (!base64) {
     console.warn('[Audio] no audioBase64 returned, using fallback mouth animation')
     startTextFallback(text)
     return
   }
 
-  audioElement = new Audio(`data:audio/wav;base64,${base64}`)
-  audioElement.preload = 'auto'
-  audioElement.crossOrigin = 'anonymous'
-  audioElement.volume = 1
-  audioElement.muted = false
-
-  audioElement.addEventListener(
-    'ended',
-    () => {
-      console.log('[Audio] playback ended')
-      stop()
-      fallbackMouthOpenY.value = 0
-    },
-    { once: true }
-  )
-
-  audioElement.addEventListener(
-    'error',
-    (event) => {
-      console.error('[Audio] playback error, falling back to text animation', event)
-      stop()
-      startTextFallback(text)
-    },
-    { once: true }
-  )
-
   try {
-    await ensureAudioContext()
-    await connect(audioElement)
-    console.log('[Audio] playback starting', {
-      bytesBase64Length: base64.length,
-      srcPrefix: audioElement.src.slice(0, 32)
-    })
-    await audioElement.play()
+    await playFromBase64(base64)
   } catch (error) {
-    console.error('[Audio] play() failed, likely blocked by autoplay policy', error)
-    stop()
+    console.error('[Audio] decodeAudioData playback failed, using text fallback', error)
     startTextFallback(text)
   }
 }
@@ -190,10 +150,6 @@ onUnmounted(() => {
   clearFallbackAnimation()
   stop()
   destroyAnalyzer()
-  if (audioElement) {
-    audioElement.pause()
-    audioElement.src = ''
-  }
   signaling.disconnect()
   rtcClient.close()
   window.removeEventListener('pointerdown', unlockAudio)

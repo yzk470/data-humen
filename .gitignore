@@ -1,0 +1,17 @@
+# Build output
+digital-human-server/target/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Live2D model files
+digital-human-web/public/models/
+digital-human-web/Azue Lane(JP)/
+
+# External dependencies / skills
+anysearch-skill/
+
+# IDE files
+.idea/jarRepositories.xml

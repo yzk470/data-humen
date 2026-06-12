@@ -6,6 +6,7 @@ import { CubismBreath, BreathParameterData } from '../cubism-framework/effect/cu
 import { CubismEyeBlink } from '../cubism-framework/effect/cubismeyeblink'
 import { CubismMatrix44 } from '../cubism-framework/math/cubismmatrix44'
 import { CubismMotion } from '../cubism-framework/motion/cubismmotion'
+import { CubismLipSyncUpdater } from '../cubism-framework/motion/cubismlipsyncupdater'
 import { CubismUpdateScheduler } from '../cubism-framework/motion/cubismupdatescheduler'
 import { CubismBreathUpdater } from '../cubism-framework/motion/cubismbreathupdater'
 import { CubismEyeBlinkUpdater } from '../cubism-framework/motion/cubismeyeblinkupdater'
@@ -14,6 +15,7 @@ import { CubismPhysicsUpdater } from '../cubism-framework/motion/cubismphysicsup
 import { CubismPoseUpdater } from '../cubism-framework/motion/cubismposeupdater'
 import { CubismShaderManager_WebGL } from '../cubism-framework/rendering/cubismshader_webgl'
 import { CubismUserModel } from '../cubism-framework/model/cubismusermodel'
+import { Live2dLipSyncValueProvider } from './live2dLipSyncValueProvider'
 
 const SHADER_PATH = '/Framework/Shaders/WebGL/'
 const IDLE_GROUP = 'Idle'
@@ -88,6 +90,7 @@ export function useLive2dDriver() {
         idleMotion: null,
         eyeBlinkIds: [],
         lipSyncIds: [],
+        lipSyncProvider: null,
         motionUpdated: false,
         sketchPartId: CubismFramework.getIdManager().getId(SKETCH_PART_ID)
       }
@@ -168,6 +171,9 @@ export function useLive2dDriver() {
   function applyParams(liveModel, params) {
     for (const [key, value] of Object.entries(params || {})) {
       if (typeof value !== 'number' || Number.isNaN(value)) continue
+      if (key === 'ParamMouthOpenY' && runtime?.lipSyncProvider && runtime.lipSyncIds.length > 0) {
+        continue
+      }
       try {
         const id = CubismFramework.getIdManager().getId(key)
         liveModel.setParameterValueById(id, value)
@@ -179,6 +185,7 @@ export function useLive2dDriver() {
 
   function setParams(params) {
     activeParams = { ...(params || {}) }
+    runtime?.lipSyncProvider?.setValue(activeParams.ParamMouthOpenY ?? 0)
     if (!runtime?.model) return
     applyParams(runtime.model.getModel(), activeParams)
   }
@@ -210,6 +217,19 @@ export function useLive2dDriver() {
       model.value = null
     }
     loaded.value = false
+  }
+
+  function disposeFramework() {
+    if (!frameworkStarted) return
+
+    try {
+      CubismFramework.dispose()
+      CubismFramework.cleanUp()
+    } catch (_) {
+      // Ignore framework disposal errors during final teardown.
+    }
+
+    frameworkStarted = false
   }
 
   async function loadTextures(gl, userModel, setting, baseDir) {
@@ -375,6 +395,13 @@ export function useLive2dDriver() {
     for (let i = 0; i < lipSyncCount; i += 1) {
       state.lipSyncIds.push(state.setting.getLipSyncParameterId(i))
     }
+
+    if (state.lipSyncIds.length > 0) {
+      state.lipSyncProvider = new Live2dLipSyncValueProvider()
+      state.updateScheduler.addUpdatableList(
+        new CubismLipSyncUpdater(state.lipSyncIds, state.lipSyncProvider)
+      )
+    }
   }
 
   async function loadIdleMotion(state, baseDir) {
@@ -407,7 +434,7 @@ export function useLive2dDriver() {
       modelMatrix.setupFromLayout(layout)
     } else {
       modelMatrix.setHeight(1.8)
-      modelMatrix.setCenterPosition(0, 0)
+      modelMatrix.setCenterPosition(1.0, 1.0)
     }
 
     const viewMatrix = new CubismMatrix44()
@@ -434,5 +461,5 @@ export function useLive2dDriver() {
     })
   }
 
-  return { init, setParams, destroy, error, loaded }
+  return { init, setParams, destroy, disposeFramework, error, loaded }
 }

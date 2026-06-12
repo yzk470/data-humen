@@ -1,5 +1,6 @@
 package com.dh.server.connector;
 
+import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesisAudioFormat;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesisParam;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesizer;
 import com.alibaba.dashscope.utils.Constants;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Set;
 
 @Slf4j
@@ -96,11 +98,17 @@ public class TtsConnector implements Connector<String, byte[]> {
     private byte[] synthesize(String apiKey, String websocketUrl, String model, String voice, String text) throws Exception {
         Constants.baseWebsocketApiUrl = websocketUrl;
 
-        SpeechSynthesisParam param = SpeechSynthesisParam.builder()
+        SpeechSynthesisParam.SpeechSynthesisParamBuilder builder = SpeechSynthesisParam.builder()
             .apiKey(apiKey)
             .model(model)
-            .voice(voice)
-            .build();
+            .voice(voice);
+
+        SpeechSynthesisAudioFormat audioFormat = resolveAudioFormat(appConfig.getTts().getResponseFormat());
+        if (audioFormat != null) {
+            builder.format(audioFormat);
+        }
+
+        SpeechSynthesisParam param = builder.build();
 
         SpeechSynthesizer synthesizer = new SpeechSynthesizer(param, null);
         try {
@@ -153,5 +161,27 @@ public class TtsConnector implements Connector<String, byte[]> {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    /**
+     * 将配置文件中的简写格式名（mp3、wav、pcm）映射为阿里云 SDK 的枚举值。
+     * 默认使用 24000 Hz 采样率以匹配 CosyVoice v3 模型。
+     */
+    private SpeechSynthesisAudioFormat resolveAudioFormat(String formatKey) {
+        if (isBlank(formatKey)) {
+            return null;
+        }
+
+        switch (formatKey.trim().toLowerCase(Locale.ROOT)) {
+            case "mp3":
+                return SpeechSynthesisAudioFormat.MP3_24000HZ_MONO_256KBPS;
+            case "wav":
+                return SpeechSynthesisAudioFormat.WAV_24000HZ_MONO_16BIT;
+            case "pcm":
+                return SpeechSynthesisAudioFormat.PCM_24000HZ_MONO_16BIT;
+            default:
+                log.warn("Unrecognized TTS response-format '{}', using SDK default", formatKey);
+                return null;
+        }
     }
 }

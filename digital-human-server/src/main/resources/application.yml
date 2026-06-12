@@ -1,5 +1,10 @@
 server:
   port: 9091
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 spring:
   datasource:
@@ -27,6 +32,11 @@ app:
     api-key: ${DEEPSEEK_API_KEY:sk-ba2afad20abe45c5b4f5ea3a3747b2ab}
     api-url: https://api.deepseek.com/v1/chat/completions
     model: deepseek-chat
+  tts:
+    api-key: ${ALIYUN_TTS_API_KEY:sk-65fe949f825444bba6e1465bd41fade3}
+    api-url: wss://dashscope.aliyuncs.com/api-ws/v1/inference
+    model: cosyvoice-v3-flash
+    response-format: wav
   avatar:
     base-model: models/base/Haru.model3.json
     models-dir: ../digital-human-web/public/models

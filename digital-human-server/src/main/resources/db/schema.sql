@@ -51,7 +51,7 @@ INSERT INTO t_dh_config (config_key, config_value, description) VALUES
 ('tts_speed', '1.0', '语速'),
 ('tts_pitch', '0', '音调'),
 ('live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', 'Live2D 模型路径'),
-('tts_voice_options', '[{"label":"莹晓","value":"longyingxiao_v3"}]', 'TTS 音色可选项'),
+('tts_voice_options', '[{"label":"莹晓","value":"longyingxiao_v3"},{"label":"龙安欢","value":"longanhuan"},{"label":"龙黛玉","value":"longdaiyu_v3"},{"label":"龙樱桃","value":"longyingtao_v3"}]', 'TTS 音色可选项'),
 ('live2d_model_options', '[{"label":"默认 Haru","value":"/models/generated/avatar_default/Haru.model3.json"}]', 'Live2D 形象可选项'),
 ('default_tts_voice_id', 'longyingxiao_v3', '默认 TTS 音色'),
 ('default_live2d_model_path', '/models/generated/avatar_default/Haru.model3.json', '默认 Live2D 形象');

@@ -1,7 +1,0 @@
-com\dh\server\orchestrator\ChatOrchestratorTest.class
-com\dh\server\connector\TtsConnectorIntegrationTest.class
-com\dh\server\avatar\AvatarServiceTest.class
-com\dh\server\avatar\TextureServiceTest.class
-com\dh\server\avatar\ModelFileServiceTest.class
-com\dh\server\connector\QwenVLConnectorTest.class
-com\dh\server\emotion\EmotionCalculatorTest.class

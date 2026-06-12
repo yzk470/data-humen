@@ -165,12 +165,22 @@ public class ModelFileService {
     }
 
     private Path findModelJson(Path dir) throws IOException {
+        // 优先查找 Cubism 3+ .model3.json
         try (DirectoryStream<Path> files = Files.newDirectoryStream(dir, "*.model3.json")) {
             for (Path file : files) {
                 return file;
             }
         }
-        throw new IOException("模型 JSON 文件未找到 (.model3.json): " + dir);
+        // 回退到 Cubism 2 .model.json
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(dir, "*.model.json")) {
+            for (Path file : files) {
+                // 排除 .model3.json（上面已经处理过）
+                if (!file.getFileName().toString().endsWith(".model3.json")) {
+                    return file;
+                }
+            }
+        }
+        throw new IOException("模型 JSON 文件未找到 (.model3.json 或 .model.json): " + dir);
     }
 
     private Path findTextureDir(Path modelDir) throws IOException {

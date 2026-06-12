@@ -6,6 +6,7 @@ export function useAudioAnalyzer() {
   const analyserNode = ref(null)
   const isAnalyzing = ref(false)
   const sourceNode = ref(null)
+  const bufferSource = ref(null)
 
   let animationFrameId = null
 
@@ -23,20 +24,12 @@ export function useAudioAnalyzer() {
     await ensureAudioContext()
 
     if (sourceNode.value) {
-      try {
-        sourceNode.value.disconnect()
-      } catch (_) {
-        // Ignore disconnect failures for replaced elements.
-      }
+      try { sourceNode.value.disconnect() } catch (_) { /* ignore */ }
       sourceNode.value = null
     }
 
     if (analyserNode.value) {
-      try {
-        analyserNode.value.disconnect()
-      } catch (_) {
-        // Ignore disconnect failures during rebind.
-      }
+      try { analyserNode.value.disconnect() } catch (_) { /* ignore */ }
     }
 
     analyserNode.value = audioContext.value.createAnalyser()
@@ -46,6 +39,43 @@ export function useAudioAnalyzer() {
     sourceNode.value.connect(analyserNode.value)
     analyserNode.value.connect(audioContext.value.destination)
 
+    isAnalyzing.value = true
+    startLoop()
+  }
+
+  /**
+   * 使用 decodeAudioData + AudioBufferSourceNode 播放音频，
+   * 完全绕过 HTML Audio 元素和 createMediaElementSource。
+   */
+  async function playFromBase64(base64) {
+    await ensureAudioContext()
+    stop()
+
+    const ctx = audioContext.value
+
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+
+    const audioBuffer = await ctx.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+
+    const source = ctx.createBufferSource()
+    source.buffer = audioBuffer
+    bufferSource.value = source
+
+    analyserNode.value = ctx.createAnalyser()
+    analyserNode.value.fftSize = 2048
+
+    source.connect(analyserNode.value)
+    analyserNode.value.connect(ctx.destination)
+
+    source.onended = () => {
+      stop()
+    }
+
+    source.start(0)
     isAnalyzing.value = true
     startLoop()
   }
@@ -61,8 +91,7 @@ export function useAudioAnalyzer() {
         sum += dataArray[i] * dataArray[i]
       }
       const rms = Math.sqrt(sum / dataArray.length)
-      const mapped = Math.min(1.0, rms * 8.0)
-      mouthOpenY.value = mapped
+      mouthOpenY.value = Math.min(1.0, rms * 8.0)
 
       animationFrameId = requestAnimationFrame(loop)
     }
@@ -74,26 +103,23 @@ export function useAudioAnalyzer() {
     if (animationFrameId) cancelAnimationFrame(animationFrameId)
     animationFrameId = null
     mouthOpenY.value = 0
+
+    if (bufferSource.value) {
+      try { bufferSource.value.stop() } catch (_) { /* already stopped */ }
+      bufferSource.value = null
+    }
+    if (sourceNode.value) {
+      try { sourceNode.value.disconnect() } catch (_) { /* ignore */ }
+      sourceNode.value = null
+    }
+    if (analyserNode.value) {
+      try { analyserNode.value.disconnect() } catch (_) { /* ignore */ }
+      analyserNode.value = null
+    }
   }
 
   function destroy() {
     stop()
-    if (sourceNode.value) {
-      try {
-        sourceNode.value.disconnect()
-      } catch (_) {
-        // Ignore teardown disconnect failures.
-      }
-      sourceNode.value = null
-    }
-    if (analyserNode.value) {
-      try {
-        analyserNode.value.disconnect()
-      } catch (_) {
-        // Ignore teardown disconnect failures.
-      }
-      analyserNode.value = null
-    }
     if (audioContext.value) {
       audioContext.value.close()
       audioContext.value = null
@@ -102,5 +128,5 @@ export function useAudioAnalyzer() {
 
   onUnmounted(() => destroy())
 
-  return { connect, stop, destroy, mouthOpenY, isAnalyzing, ensureAudioContext }
+  return { connect, playFromBase64, stop, destroy, mouthOpenY, isAnalyzing, ensureAudioContext }
 }

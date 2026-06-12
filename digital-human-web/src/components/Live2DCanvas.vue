@@ -1,13 +1,14 @@
 <template>
   <div class="live2d-container" :style="{ width: width + 'px', height: height + 'px' }">
-    <canvas ref="canvasRef" class="live2d-canvas"></canvas>
+    <canvas :key="canvasKey" ref="canvasRef" class="live2d-canvas"></canvas>
     <div v-if="error" class="live2d-error">{{ error }}</div>
   </div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useLive2dDriver } from '../composables/useLive2dDriver'
+import { usePixiLive2dDriver } from '../composables/usePixiLive2dDriver'
 
 const props = defineProps({
   width: { type: Number, default: 600 },
@@ -18,16 +19,35 @@ const props = defineProps({
 })
 
 const canvasRef = ref(null)
-const { init, setParams, destroy, error } = useLive2dDriver()
+const canvasKey = ref(0)
+const c4driver = useLive2dDriver()
+const pixiDriver = usePixiLive2dDriver()
+
+// Cubism 2: .model.json 但不以 .model3.json 结尾
+function isCubism2(path) {
+  if (!path || path.endsWith('.model3.json')) return false
+  return path.endsWith('.model.json') || path.endsWith('/model.json')
+}
+
+const driver = ref(c4driver)
+const error = computed(() => driver.value.error?.value ?? null)
+
+function pickDriver(path) {
+  driver.value = isCubism2(path) ? pixiDriver : c4driver
+}
 
 async function initModel() {
+  driver.value.destroy()
+  canvasKey.value += 1
+  await nextTick()
   if (!canvasRef.value || !props.modelPath) return
-  await init(canvasRef.value, props.modelPath)
+  pickDriver(props.modelPath)
+  await driver.value.init(canvasRef.value, props.modelPath)
   applyAnimation()
 }
 
 function applyAnimation() {
-  setParams({
+  driver.value.setParams({
     ...props.animationParams,
     ParamMouthOpenY: props.mouthOpenY
   })
@@ -50,15 +70,15 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  destroy()
+  c4driver.destroy()
+  c4driver.disposeFramework?.()
+  pixiDriver.destroy()
 })
 </script>
 
 <style scoped>
 .live2d-container {
-  overflow: hidden;
   position: relative;
-  border-radius: 16px;
 }
 
 .live2d-canvas {
